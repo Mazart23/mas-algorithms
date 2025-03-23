@@ -5,14 +5,17 @@ import threading
 import copy
 from dataclasses import dataclass, field
 import uuid
+from enum import Enum
 import queue
 
 import numpy as np
 
+
 # general parameters
-NUM_AGENTS = 5
-ITERATIONS = 50
+NUM_AGENTS = 10
+ITERATIONS = 1
 ADAPTATION_SPEED = 0.1
+ADAPTATION_CHANGE_TOLERATION = 0.05
 
 # PSO parameters
 PSO_ITERATIONS = 50
@@ -33,6 +36,12 @@ DIMENSIONS = 10
 MIN_VALUE = -5.12
 MAX_VALUE = -5.12
 
+
+class AgentType(Enum):
+    PSO = 0
+    GA = 1
+
+
 def rastrigin(x):
     return 10 * len(x) + sum(xi**2 - 10 * np.cos(2 * np.pi * xi) for xi in x)
 
@@ -43,91 +52,168 @@ class Solution:
     solution_id: uuid.UUID = field(default_factory=uuid.uuid4, compare=False)
 
 class SwarmSupervisor:
-    def __init__(self, agents: list[ParticleAgent] = []):
-        self.particle_agents: list[ParticleAgent] = agents
+    def __init__(self, num_pso: int, num_ga: int):
+        self.num_pso: int = num_pso
+        self.num_ga: int = num_ga
+
+        # self.particle_agents: list[ParticleAgent] = []
+        self.particle_agents_pso: list[ParticleAgent] = []
+        self.particle_agents_ga: list[ParticleAgent] = []
         
         self.global_best = Solution()
         
         self.population: list[Solution] = []
-        self.childs = queue.PriorityQueue()
+        self.childs: list[Solution] = []
+        self.possible_pairs: int = 0
+        self.probabilities: list[float] = []
         
         self._lock_population = threading.Lock()
+        self._lock_probabilities = threading.Lock()
         self._lock_global_best = threading.Lock()
-        self._lock_particle_agents = threading.Lock()
+        # self._lock_particle_agents = threading.Lock()
+        self._lock_particle_agents_pso = threading.Lock()
+        self._lock_particle_agents_ga = threading.Lock()
         
-        self.performance = {"PSO": [], "GA": []}
+        self.performance = {'PSO': [], 'GA': []}
     
     def initialize_global_best(self):
-        if self.particle_agents:
-            self.global_best = copy.deepcopy(min([agent.local_best for agent in self.particle_agents], key=lambda s: s.value))
+        if self.particle_agents_pso:
+            self.global_best = copy.deepcopy(min([agent.local_best for agent in self.particle_agents_pso], key=lambda s: s.value))
             self.announce_global_best()
     
     def initialize_population(self):
         self.population = sorted([Solution(pos := np.random.uniform(MIN_VALUE, MAX_VALUE, DIMENSIONS), rastrigin(pos)) for _ in range(GA_POPULATION)])
+        self.calculate_possible_pairs()
+        self.calculate_probabilities()
+
+    def initialize_agents(self, agent_obj_lst_pso: list[PSOAgent], agent_obj_lst_ga: list[GAAgent]):
+        with self._lock_particle_agents_pso:
+            self.particle_agents_pso += agent_obj_lst_pso
+        with self._lock_particle_agents_ga:
+            self.particle_agents_ga += agent_obj_lst_ga
     
     def add_agents(self, agent_obj_lst: list[ParticleAgent]):
-        with self._lock_particle_agents:
-            self.particle_agents += agent_obj_lst
+        if agent_obj_lst:
+            if isinstance(agent_obj_lst[0], PSOAgent):
+                with self._lock_particle_agents_pso:
+                    self.particle_agents_pso += agent_obj_lst
+            elif isinstance(agent_obj_lst[0], GAAgent):
+                with self._lock_particle_agents_ga:
+                    self.particle_agents_ga += agent_obj_lst
     
-    def remove_agent(self, agent_obj: ParticleAgent):
-        with self._lock_particle_agents:
-            self.particle_agents.remove(agent_obj)
+    def remove_agents(self, agent_type: str, num_to_remove: int):
+        match agent_type:
+            case 'PSO':
+                with self._lock_particle_agents_pso:
+                    for _ in range(num_to_remove):
+                        worst_agent = max(self.particle_agents_pso)
+                        self.particle_agents_pso.remove(worst_agent)
+            case 'GA':
+                with self._lock_particle_agents_ga:
+                    for _ in range(num_to_remove):
+                        worst_agent = max(self.particle_agents_ga)
+                        self.particle_agents_ga.remove(worst_agent)
     
     def update_global_best(self, new_best_candidate: Solution):
         if new_best_candidate.value < self.global_best.value:
             with self._lock_global_best:
                 self.global_best = copy.deepcopy(new_best_candidate)
             self.announce_global_best()
-            print(f"[SwarmSupervisor] New global best: {self.global_best.value:.4f} at {self.global_best.position}")
+            print(f'[SwarmSupervisor] New global best: {self.global_best.value:.4f} at {self.global_best.position}')
     
     def announce_global_best(self):
-        with self._lock_particle_agents:
-            for particle_agent in self.particle_agents:
+        with self._lock_particle_agents_pso:
+            for particle_agent in self.particle_agents_pso:
                 particle_agent.set_global_best(copy.deepcopy(self.global_best))
-                
-    def update_childs(self, new_child: Solution):
-        self.childs.put(new_child)
+
+    def fetch_childs(self):
+        for agent in self.particle_agents_ga:
+            self.performance['GA'].append(agent.get_local_best())
+            agent_childs = agent.get_childs()
+            self.childs += agent_childs
     
-    def create_pairs(self):
-        pass
+    def get_parents(self):
+        with self._lock_probabilities:
+            parent1, parent2 = np.random.choice(self.population, p=self.probabilities, replace=False, size=2)
+        return parent1, parent2
     
-    def select_population(self):
-        n_parents = int(PARENTS_PERCENTAGE * GA_POPULATION) + 1
-        n_childs = int(CHILDREN_PERCENTAGE * GA_POPULATION) + 1
-        n_random = GA_POPULATION - n_parents - n_childs
+    def calculate_possible_pairs(self):
+        population_length = len(self.population)
+        self.possible_pairs = (population_length * (population_length + 1)) / 2
+
+    def calculate_probabilities(self):
+        self.probabilities = [i / self.possible_pairs for i in range(1, len(self.population) + 1)]
+
+    def select_population(self) -> None:
+        population_length = len(self.population)
+        n_parents = int(PARENTS_PERCENTAGE * population_length) + 1
+        n_childs = int(CHILDREN_PERCENTAGE * population_length) + 1
+        n_random = population_length - n_parents - n_childs
+
+        self.childs.sort()
 
         best_ones = self.population[:n_parents] + self.childs[:n_childs]
         others = self.population[n_parents:] + self.childs[n_childs:]
 
-        self.population = best_ones + np.ndarray.tolist(np.random.choice(others, size=n_random, replace=False))
+        self.population = sorted(best_ones + np.ndarray.tolist(np.random.choice(others, size=n_random, replace=False)))
+        self.childs = []
     
     def collect_results(self, agent_type: str, best_value: float):
         self.performance[agent_type].append(best_value)
         
-    def adjust_agent_ratio(self, num_pso: int, num_ga: int):
-        if num_pso > 1 and num_ga > 1 and len(self.performance["PSO"]) > 0 and len(self.performance["GA"]) > 0:
-            avg_pso = np.mean(self.performance["PSO"][-num_pso:])
-            avg_ga = np.mean(self.performance["GA"][-num_ga:])
+    def adjust_agent_ratio(self):
+        if self.num_pso > 1 and self.num_ga > 1 and len(self.performance['PSO']) > 0 and len(self.performance['GA']) > 0:
+            avg_pso = np.mean(self.performance['PSO'][-self.num_pso:])
+            avg_ga = np.mean(self.performance['GA'][-self.num_ga:])
     
-            num_to_change = int(min(num_pso, num_ga) * ADAPTATION_SPEED)
+            num_to_change = int(min(self.num_pso, self.num_ga) * ADAPTATION_SPEED)
             if num_to_change == 0:
                 num_to_change += 1
             
-            if avg_ga > avg_pso:
-                num_pso -= num_to_change
-                num_ga += num_to_change
-            else:
-                num_ga -= num_to_change
-                num_pso += num_to_change
+            if avg_ga > avg_pso * (1 + ADAPTATION_CHANGE_TOLERATION) and self.num_ga > 1:
+                num_to_change = min(num_to_change, self.num_ga - 1)
+                self.num_pso += num_to_change
+                self.num_ga -= num_to_change
+                self.add_agents([PSOAgent(self) for _ in range(num_to_change)])
+                self.remove_agents('GA', num_to_change)
+            elif avg_pso > avg_ga * (1 + ADAPTATION_CHANGE_TOLERATION) and self.num_pso > 1:
+                num_to_change = min(num_to_change, self.num_pso - 1)
+                self.num_ga += num_to_change
+                self.num_pso -= num_to_change
+                self.add_agents([GAAgent(self) for _ in range(num_to_change)])
+                self.remove_agents('PSO', num_to_change)
+    
+    def run_agents(self):
+        for agent in self.particle_agents_pso:
+            agent.start()
+        for agent in self.particle_agents_ga:
+            agent.start()
+        
+        for agent in self.particle_agents_pso:
+            agent.join()
+        for agent in self.particle_agents_ga:
+            agent.join()
 
-        return num_pso, num_ga
 
 class ParticleAgent(threading.Thread):
     def __init__(self, supervisor: SwarmSupervisor):
         self.agent_id = uuid.uuid4()
         super().__init__()
         self.supervisor: SwarmSupervisor = supervisor
+        self.local_best: Solution | None = None
     
+    def __hash__(self):
+        return hash(self.agent_id)
+
+    def __eq__(self, other):
+        return self.local_best.value == other.local_best.value
+    
+    def __lt__(self, other):
+        return self.local_best.value < other.local_best.value
+    
+    def __gt__(self, other):
+        return self.local_best.value > other.local_best.value
+
     def set_global_best(self, global_best: Solution):
         self.global_best = global_best
 
@@ -140,9 +226,9 @@ class PSOAgent(ParticleAgent):
         self.velocities: np.ndarray[float] = np.random.uniform(-1, 1, (DIMENSIONS,))
         
         self.current: Solution = Solution(position, rastrigin(position))
-        self.local_best: Solution = copy.deepcopy(self.current)
+        self.local_best: Solution | None = copy.deepcopy(self.current)
         self.global_best: Solution = Solution()
-    
+
     def run(self):            
         for iteration in range(PSO_ITERATIONS):
             global_best_position = self.global_best.position
@@ -161,89 +247,75 @@ class PSOAgent(ParticleAgent):
                     self.supervisor.update_global_best(self.local_best)
             
             if iteration % 10 == 0:
-                print(f"[AGENT {self.agent_id}] Iteration {iteration}, local best: {self.local_best.value:.4f}")
+                print(f'[AGENT {self.agent_id}] Iteration {iteration}, local best: {self.local_best.value:.4f}')
         
-        self.supervisor.collect_results("PSO", self.local_best.value)
+        self.supervisor.collect_results('PSO', self.local_best.value)
                 
 class GAAgent(ParticleAgent):
-    def __init__(self, supervisor: SwarmSupervisor, parent1: Solution, parent2: Solution):
+    def __init__(self, supervisor: SwarmSupervisor):
         super().__init__(supervisor)
-        self.parent1: Solution | None = parent1
-        self.parent2: Solution | None = parent2
+        self.local_best: Solution | None = None
+        self.parent1: Solution | None = None
+        self.parent2: Solution | None = None
+        self.offsprings_queue: queue.PriorityQueue[Solution] = queue.PriorityQueue()
+        self.childs: list[Solution] = []
 
-    def pass_parents(self, parent1: Solution, parent2: Solution):
-        self.parent1 = parent1
-        self.parent2 = parent2
+    def get_childs(self):
+        return self.childs
     
-    def select_population(pop_init: list[Solution], pop_current) -> list[Solution]:
-        pop_init = sorted(pop_init, key=lambda s: s.fitness, reverse=False)
-        pop_current = sorted(pop_current, key=lambda s: s.fitness, reverse=False)
+    def get_local_best(self) -> float:
+        return self.local_best.value
+    
+    def set_local_best(self) -> None:
+        self.childs = list(self.offsprings_queue.queue)
+        self.local_best = self.childs[0]
 
-        n_parents = int(PARENTS_PERCENTAGE * GA_POPULATION) + 1
-        n_children = int(CHILDREN_PERCENTAGE * GA_POPULATION) + 1
-        n_random = GA_POPULATION - n_parents - n_children
+    def crossover(self) -> list[int]:
+        return [parent.position[dim] for dim, parent in zip(range(DIMENSIONS), np.random.choice([self.parent1, self.parent2], size=DIMENSIONS))]
 
-        best_ones = pop_init[:n_parents] + pop_current[:n_children]
-        others = pop_init[n_parents:] + pop_current[n_children:]
-
-        next_pop = best_ones + np.ndarray.tolist(np.random.choice(others, size=n_random, replace=False))
-
-        return next_pop
-
-    def crossover(self, parent1, parent2):
-        return [parent.position[dim] for dim, parent in zip(DIMENSIONS, np.random.choice([parent1, parent2], size=DIMENSIONS))]
-
-    def mutate(self, offspring):
+    def mutate(self, offspring: list[int]):
         if np.random.rand() < MUTATION_RATE:
             idx = np.random.randint(0, DIMENSIONS)
             offspring[idx] += np.random.uniform(-0.5, 0.5)
         return offspring
 
-    def run(self):
-        for _ in range(GA_ITERATIONS):
-            self.select_population()
-            child = self.crossover()
+    def run(self) -> None:
+        for iteration in range(GA_ITERATIONS):
+            self.parent1, self.parent2 = self.supervisor.get_parents()
+            offspring = self.crossover()
             offspring = self.mutate(offspring)
             offspring_score = rastrigin(offspring)
-
-            worst_idx = np.argmax(self.scores)
-            if offspring_score < self.scores[worst_idx]:
-                self.population[worst_idx] = offspring
-                self.scores[worst_idx] = offspring_score
-
-        best_idx = np.argmin(self.scores)
-        best_solution = Solution(self.population[best_idx], self.scores[best_idx])
-        self.supervisor.update_global_best(best_solution)
-        self.supervisor.collect_results("GA", best_solution.value)
+            solution = Solution(offspring, offspring_score)
+            self.offsprings_queue.put(solution)
+            # self.supervisor.update_childs(solution)
+            if iteration % 10 == 0:
+                print(f'[AGENT {self.agent_id}] Iteration {iteration}')
+        self.set_local_best()
+        self.supervisor.collect_results('GA', self.local_best.value)
 
 
-if __name__ == "__main__":
-    print(f"Is GIL enabled: {sys._is_gil_enabled()}\n")
+if __name__ == '__main__':
+    # print(f'Is GIL enabled: {sys._is_gil_enabled()}\n')
     time_start = time.perf_counter()
-    
-    supervisor = SwarmSupervisor()
     
     num_pso = NUM_AGENTS // 2
     num_ga = NUM_AGENTS - num_pso
-    
-    agents = [PSOAgent(supervisor) for _ in range(num_pso)] + [GAAgent(supervisor) for _ in range(num_ga)]
-    
+
+    supervisor = SwarmSupervisor(num_pso, num_ga)
+        
+    supervisor.initialize_agents([PSOAgent(supervisor) for _ in range(num_pso)], [GAAgent(supervisor) for _ in range(num_ga)])
+    supervisor.initialize_global_best()
+    supervisor.initialize_population()
+
     for i in range(ITERATIONS):
-        agents = [PSOAgent(supervisor) for _ in range(num_pso)] + [GAAgent(supervisor) for _ in range(num_ga)]
-        supervisor.add_agents(agents)
-        supervisor.initialize_global_best()
-        supervisor.initialize_population()
-        
-        for agent in agents:
-            agent.start()
-        
-        for agent in agents:
-            agent.join()
-        
+        supervisor.run_agents()
+
         supervisor.select_population()
             
-        num_pso, num_ga = supervisor.adjust_agent_ratio(num_pso, num_ga)
+        supervisor.adjust_agent_ratio()
     
     time_end = time.perf_counter()
     print(f'\nTime execution: {time_end - time_start}')
-    print(f'Best global solution: {supervisor.global_best.value:.4f} at {supervisor.global_best.position}')
+    print(f'Best global solution PSO: {supervisor.global_best.value:.4f} at {supervisor.global_best.position}')
+    ga_best = min(supervisor.population)
+    print(f'Best global solution GA: {ga_best.value:.4f} at {ga_best.position}')
