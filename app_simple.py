@@ -7,13 +7,14 @@ from dataclasses import dataclass, field
 import uuid
 from enum import Enum
 import queue
+import ctypes
 
 import numpy as np
 
 
 # general parameters
 NUM_AGENTS = 10
-ITERATIONS = 1
+ITERATIONS = 100
 ADAPTATION_SPEED = 0.1
 ADAPTATION_CHANGE_TOLERATION = 0.05
 
@@ -34,7 +35,7 @@ CHILDREN_PERCENTAGE = 0.5
 # function parameters
 DIMENSIONS = 10
 MIN_VALUE = -5.12
-MAX_VALUE = -5.12
+MAX_VALUE = 5.12
 
 
 class AgentType(Enum):
@@ -83,6 +84,7 @@ class SwarmSupervisor:
     
     def initialize_population(self):
         self.population = sorted([Solution(pos := np.random.uniform(MIN_VALUE, MAX_VALUE, DIMENSIONS), rastrigin(pos)) for _ in range(GA_POPULATION)])
+        print('POPULATION', self.population)
         self.calculate_possible_pairs()
         self.calculate_probabilities()
 
@@ -100,6 +102,8 @@ class SwarmSupervisor:
             elif isinstance(agent_obj_lst[0], GAAgent):
                 with self._lock_particle_agents_ga:
                     self.particle_agents_ga += agent_obj_lst
+            for agent in agent_obj_lst:
+                agent.start()
     
     def remove_agents(self, agent_type: str, num_to_remove: int):
         match agent_type:
@@ -108,11 +112,13 @@ class SwarmSupervisor:
                     for _ in range(num_to_remove):
                         worst_agent = max(self.particle_agents_pso)
                         self.particle_agents_pso.remove(worst_agent)
+                        worst_agent.kill()
             case 'GA':
                 with self._lock_particle_agents_ga:
                     for _ in range(num_to_remove):
                         worst_agent = max(self.particle_agents_ga)
                         self.particle_agents_ga.remove(worst_agent)
+                        worst_agent.kill()
     
     def update_global_best(self, new_best_candidate: Solution):
         if new_best_candidate.value < self.global_best.value:
@@ -149,13 +155,14 @@ class SwarmSupervisor:
         n_parents = int(PARENTS_PERCENTAGE * population_length) + 1
         n_childs = int(CHILDREN_PERCENTAGE * population_length) + 1
         n_random = population_length - n_parents - n_childs
-
+        print(n_parents, n_childs, n_random)
         self.childs.sort()
 
         best_ones = self.population[:n_parents] + self.childs[:n_childs]
         others = self.population[n_parents:] + self.childs[n_childs:]
 
-        self.population = sorted(best_ones + np.ndarray.tolist(np.random.choice(others, size=n_random, replace=False)))
+        self.population = sorted(best_ones + list(np.random.choice(others, size=n_random, replace=False)))
+        print('POPULATION', self.population)
         self.childs = []
     
     def collect_results(self, agent_type: str, best_value: float):
@@ -183,22 +190,23 @@ class SwarmSupervisor:
                 self.add_agents([GAAgent(self) for _ in range(num_to_change)])
                 self.remove_agents('PSO', num_to_change)
     
+    def start_agents(self):
+        for agent in self.particle_agents_pso:
+            agent.go()
+        for agent in self.particle_agents_ga:
+            agent.go()
+    
     def run_agents(self):
         for agent in self.particle_agents_pso:
             agent.start()
         for agent in self.particle_agents_ga:
             agent.start()
-        
-        for agent in self.particle_agents_pso:
-            agent.join()
-        for agent in self.particle_agents_ga:
-            agent.join()
-
 
 class ParticleAgent(threading.Thread):
     def __init__(self, supervisor: SwarmSupervisor):
         self.agent_id = uuid.uuid4()
-        super().__init__()
+        super().__init__(daemon=True)
+        self.event = threading.Event()
         self.supervisor: SwarmSupervisor = supervisor
         self.local_best: Solution | None = None
     
@@ -216,7 +224,26 @@ class ParticleAgent(threading.Thread):
 
     def set_global_best(self, global_best: Solution):
         self.global_best = global_best
-
+    
+    def execute(self) -> None:
+        pass
+    
+    def run(self):
+        while True:
+            self.event.wait()
+            self.execute()
+            self.event.clear()
+    
+    def go(self):
+        self.event.set()
+        
+    def stop(self):
+        self.event.clear()
+    
+    def kill(self):
+        ctypes.pythonapi.PyThreadState_SetAsyncExc(
+            ctypes.c_long(self.ident), ctypes.py_object(SystemExit)
+        )
 
 class PSOAgent(ParticleAgent):
     def __init__(self, supervisor: SwarmSupervisor):
@@ -229,7 +256,7 @@ class PSOAgent(ParticleAgent):
         self.local_best: Solution | None = copy.deepcopy(self.current)
         self.global_best: Solution = Solution()
 
-    def run(self):            
+    def execute(self):            
         for iteration in range(PSO_ITERATIONS):
             global_best_position = self.global_best.position
         
@@ -274,12 +301,10 @@ class GAAgent(ParticleAgent):
         return [parent.position[dim] for dim, parent in zip(range(DIMENSIONS), np.random.choice([self.parent1, self.parent2], size=DIMENSIONS))]
 
     def mutate(self, offspring: list[int]):
-        if np.random.rand() < MUTATION_RATE:
-            idx = np.random.randint(0, DIMENSIONS)
-            offspring[idx] += np.random.uniform(-0.5, 0.5)
-        return offspring
+        mutation_vector = list(np.random.uniform(-0.5, 0.5, size=DIMENSIONS) * (np.random.rand(DIMENSIONS) < MUTATION_RATE))
+        return offspring + mutation_vector
 
-    def run(self) -> None:
+    def execute(self) -> None:
         for iteration in range(GA_ITERATIONS):
             self.parent1, self.parent2 = self.supervisor.get_parents()
             offspring = self.crossover()
@@ -295,7 +320,7 @@ class GAAgent(ParticleAgent):
 
 
 if __name__ == '__main__':
-    # print(f'Is GIL enabled: {sys._is_gil_enabled()}\n')
+    print(f'Is GIL enabled: {sys._is_gil_enabled()}\n')
     time_start = time.perf_counter()
     
     num_pso = NUM_AGENTS // 2
@@ -307,8 +332,10 @@ if __name__ == '__main__':
     supervisor.initialize_global_best()
     supervisor.initialize_population()
 
+    supervisor.run_agents()
+    
     for i in range(ITERATIONS):
-        supervisor.run_agents()
+        supervisor.start_agents()
 
         supervisor.select_population()
             
@@ -318,4 +345,5 @@ if __name__ == '__main__':
     print(f'\nTime execution: {time_end - time_start}')
     print(f'Best global solution PSO: {supervisor.global_best.value:.4f} at {supervisor.global_best.position}')
     ga_best = min(supervisor.population)
+    print(supervisor.population)
     print(f'Best global solution GA: {ga_best.value:.4f} at {ga_best.position}')
