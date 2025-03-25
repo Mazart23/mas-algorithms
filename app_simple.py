@@ -13,21 +13,21 @@ import numpy as np
 
 
 # general parameters
-NUM_AGENTS = 10
-ITERATIONS = 100
+NUM_AGENTS = 100
+ITERATIONS = 20
 ADAPTATION_SPEED = 0.1
 ADAPTATION_CHANGE_TOLERATION = 0.05
 
 # PSO parameters
-PSO_ITERATIONS = 50
+PSO_ITERATIONS = 200
 W = 0.7  # Inertion
 C1 = 1.5  # weight for best local position
 C2 = 1.5  # weight for best global position
 
 # GA parameters
-GA_ITERATIONS = 50
+GA_ITERATIONS = 200
 GA_POPULATION = 10
-CROSSOVER_PROB = 0.5
+CROSSOVER_PROB = 0.9
 MUTATION_RATE = 0.1
 PARENTS_PERCENTAGE = 0.2
 CHILDREN_PERCENTAGE = 0.5
@@ -53,13 +53,19 @@ class Solution:
     solution_id: uuid.UUID = field(default_factory=uuid.uuid4, compare=False)
 
 class SwarmSupervisor:
-    def __init__(self, num_pso: int, num_ga: int):
+    def __init__(self, num_pso: int, num_ga: int, adapt: bool = False):
         self.num_pso: int = num_pso
         self.num_ga: int = num_ga
+        self.adapt: bool = adapt
 
         # self.particle_agents: list[ParticleAgent] = []
         self.particle_agents_pso: list[ParticleAgent] = []
         self.particle_agents_ga: list[ParticleAgent] = []
+        
+        self.is_running: dict[str, bool] = {
+            'PSO': False,
+            'GA': False
+        }
         
         self.global_best = Solution()
         
@@ -84,7 +90,7 @@ class SwarmSupervisor:
     
     def initialize_population(self):
         self.population = sorted([Solution(pos := np.random.uniform(MIN_VALUE, MAX_VALUE, DIMENSIONS), rastrigin(pos)) for _ in range(GA_POPULATION)])
-        print('POPULATION', self.population)
+        print([elem.value for elem in self.population])
         self.calculate_possible_pairs()
         self.calculate_probabilities()
 
@@ -99,11 +105,14 @@ class SwarmSupervisor:
             if isinstance(agent_obj_lst[0], PSOAgent):
                 with self._lock_particle_agents_pso:
                     self.particle_agents_pso += agent_obj_lst
+                for agent in agent_obj_lst:
+                    agent.start()
+                    agent.set_global_best(copy.deepcopy(self.global_best))
             elif isinstance(agent_obj_lst[0], GAAgent):
                 with self._lock_particle_agents_ga:
                     self.particle_agents_ga += agent_obj_lst
-            for agent in agent_obj_lst:
-                agent.start()
+                for agent in agent_obj_lst:
+                    agent.start()
     
     def remove_agents(self, agent_type: str, num_to_remove: int):
         match agent_type:
@@ -134,7 +143,6 @@ class SwarmSupervisor:
 
     def fetch_childs(self):
         for agent in self.particle_agents_ga:
-            self.performance['GA'].append(agent.get_local_best())
             agent_childs = agent.get_childs()
             self.childs += agent_childs
     
@@ -151,46 +159,48 @@ class SwarmSupervisor:
         self.probabilities = [i / self.possible_pairs for i in range(1, len(self.population) + 1)]
 
     def select_population(self) -> None:
+        self.fetch_childs()
+        self.childs.sort()
+        print([elem.value for elem in self.childs])
         population_length = len(self.population)
         n_parents = int(PARENTS_PERCENTAGE * population_length) + 1
         n_childs = int(CHILDREN_PERCENTAGE * population_length) + 1
         n_random = population_length - n_parents - n_childs
-        print(n_parents, n_childs, n_random)
-        self.childs.sort()
 
         best_ones = self.population[:n_parents] + self.childs[:n_childs]
         others = self.population[n_parents:] + self.childs[n_childs:]
 
         self.population = sorted(best_ones + list(np.random.choice(others, size=n_random, replace=False)))
-        print('POPULATION', self.population)
+        print([elem.value for elem in self.population])
         self.childs = []
     
     def collect_results(self, agent_type: str, best_value: float):
         self.performance[agent_type].append(best_value)
         
     def adjust_agent_ratio(self):
-        if self.num_pso > 1 and self.num_ga > 1 and len(self.performance['PSO']) > 0 and len(self.performance['GA']) > 0:
-            avg_pso = np.mean(self.performance['PSO'][-self.num_pso:])
-            avg_ga = np.mean(self.performance['GA'][-self.num_ga:])
-    
-            num_to_change = int(min(self.num_pso, self.num_ga) * ADAPTATION_SPEED)
-            if num_to_change == 0:
-                num_to_change += 1
-            
-            if avg_ga > avg_pso * (1 + ADAPTATION_CHANGE_TOLERATION) and self.num_ga > 1:
-                num_to_change = min(num_to_change, self.num_ga - 1)
-                self.num_pso += num_to_change
-                self.num_ga -= num_to_change
-                self.add_agents([PSOAgent(self) for _ in range(num_to_change)])
-                self.remove_agents('GA', num_to_change)
-            elif avg_pso > avg_ga * (1 + ADAPTATION_CHANGE_TOLERATION) and self.num_pso > 1:
-                num_to_change = min(num_to_change, self.num_pso - 1)
-                self.num_ga += num_to_change
-                self.num_pso -= num_to_change
-                self.add_agents([GAAgent(self) for _ in range(num_to_change)])
-                self.remove_agents('PSO', num_to_change)
+        avg_pso = np.mean(self.performance['PSO'][-self.num_pso:])
+        avg_ga = np.mean(self.performance['GA'][-self.num_ga:])
+
+        num_to_change = int(min(self.num_pso, self.num_ga) * ADAPTATION_SPEED)
+        if num_to_change == 0:
+            num_to_change += 1
+        
+        if avg_ga > avg_pso * (1 + ADAPTATION_CHANGE_TOLERATION) and self.num_ga > 1:
+            num_to_change = min(num_to_change, self.num_ga - 1)
+            self.num_pso += num_to_change
+            self.num_ga -= num_to_change
+            self.add_agents([PSOAgent(self) for _ in range(num_to_change)])
+            self.remove_agents('GA', num_to_change)
+        elif avg_pso > avg_ga * (1 + ADAPTATION_CHANGE_TOLERATION) and self.num_pso > 1:
+            num_to_change = min(num_to_change, self.num_pso - 1)
+            self.num_ga += num_to_change
+            self.num_pso -= num_to_change
+            self.add_agents([GAAgent(self) for _ in range(num_to_change)])
+            self.remove_agents('PSO', num_to_change)
     
     def start_agents(self):
+        self.is_running['PSO'] = True
+        self.is_running['GA'] = True
         for agent in self.particle_agents_pso:
             agent.go()
         for agent in self.particle_agents_ga:
@@ -201,6 +211,19 @@ class SwarmSupervisor:
             agent.start()
         for agent in self.particle_agents_ga:
             agent.start()
+    
+    def wait_for_agents(self):
+        while True:
+            if self.is_running['PSO'] and not any(agent.event.is_set() for agent in self.particle_agents_pso):
+                self.is_running['PSO'] = False
+                print('####### PSO STOPPED')
+            if self.is_running['GA'] and not any(agent.event.is_set() for agent in self.particle_agents_ga):
+                self.is_running['GA'] = False
+                print('####### GA STOPPED')
+            if not self.is_running['PSO'] and not self.is_running['GA']:
+                break
+            time.sleep(0.01)
+
 
 class ParticleAgent(threading.Thread):
     def __init__(self, supervisor: SwarmSupervisor):
@@ -221,9 +244,6 @@ class ParticleAgent(threading.Thread):
     
     def __gt__(self, other):
         return self.local_best.value > other.local_best.value
-
-    def set_global_best(self, global_best: Solution):
-        self.global_best = global_best
     
     def execute(self) -> None:
         pass
@@ -256,7 +276,10 @@ class PSOAgent(ParticleAgent):
         self.local_best: Solution | None = copy.deepcopy(self.current)
         self.global_best: Solution = Solution()
 
-    def execute(self):            
+    def set_global_best(self, global_best: Solution):
+        self.global_best = global_best
+    
+    def execute(self) -> None:
         for iteration in range(PSO_ITERATIONS):
             global_best_position = self.global_best.position
         
@@ -320,13 +343,15 @@ class GAAgent(ParticleAgent):
 
 
 if __name__ == '__main__':
-    print(f'Is GIL enabled: {sys._is_gil_enabled()}\n')
+    adapt = False
+    print(f'Is GIL enabled: {sys._is_gil_enabled()}')
+    print(f'Is adaptation enabled: {adapt}', end='')
     time_start = time.perf_counter()
     
     num_pso = NUM_AGENTS // 2
     num_ga = NUM_AGENTS - num_pso
 
-    supervisor = SwarmSupervisor(num_pso, num_ga)
+    supervisor = SwarmSupervisor(num_pso, num_ga, adapt=adapt)
         
     supervisor.initialize_agents([PSOAgent(supervisor) for _ in range(num_pso)], [GAAgent(supervisor) for _ in range(num_ga)])
     supervisor.initialize_global_best()
@@ -335,15 +360,18 @@ if __name__ == '__main__':
     supervisor.run_agents()
     
     for i in range(ITERATIONS):
+        print(f'\n\n##############\nIteration: {i}')
+        print(f'Number of agents:\n\tPSO: {supervisor.num_pso}\n\tGA: {supervisor.num_ga}\n')
         supervisor.start_agents()
+        supervisor.wait_for_agents()
 
         supervisor.select_population()
-            
-        supervisor.adjust_agent_ratio()
+        
+        if supervisor.adapt:
+            supervisor.adjust_agent_ratio()
     
     time_end = time.perf_counter()
     print(f'\nTime execution: {time_end - time_start}')
     print(f'Best global solution PSO: {supervisor.global_best.value:.4f} at {supervisor.global_best.position}')
     ga_best = min(supervisor.population)
-    print(supervisor.population)
     print(f'Best global solution GA: {ga_best.value:.4f} at {ga_best.position}')
