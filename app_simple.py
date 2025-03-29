@@ -13,16 +13,16 @@ import numpy as np
 
 
 # general parameters
-NUM_AGENTS = 100
-ITERATIONS = 20
+NUM_AGENTS = 400
+ITERATIONS = 10
 ADAPTATION_SPEED = 0.1
 ADAPTATION_CHANGE_TOLERATION = 0.05
 
 # PSO parameters
 PSO_ITERATIONS = 200
-W = 0.7  # Inertion
+W = 1  # Inertion
 C1 = 1.5  # weight for best local position
-C2 = 1.5  # weight for best global position
+C2 = 1  # weight for best global position
 
 # GA parameters
 GA_ITERATIONS = 200
@@ -45,6 +45,34 @@ class AgentType(Enum):
 
 def rastrigin(x):
     return 10 * len(x) + sum(xi**2 - 10 * np.cos(2 * np.pi * xi) for xi in x)
+
+def sphere(x):
+    return sum(xi**2 for xi in x)
+
+def ackley(x):
+    a = 20
+    b = 0.2
+    c = 2 * np.pi
+    d = len(x)
+    sum1 = sum(xi**2 for xi in x)
+    sum2 = sum(np.cos(c * xi) for xi in x)
+    return -a * np.exp(-b * np.sqrt(sum1 / d)) - np.exp(sum2 / d) + a + np.e
+
+def griewank(x):
+    sum1 = sum(xi**2 / 4000 for xi in x)
+    prod = np.prod([np.cos(xi / np.sqrt(i + 1)) for i, xi in enumerate(x)])
+    return sum1 - prod + 1
+
+def one_max(x):
+    x = np.round(x).astype(int)
+    return -sum(x)
+
+OBJECTIVE_FUNCTIONS = {
+    'rastrigin': rastrigin,
+    'sphere': sphere,
+    'ackley': ackley,
+    'griewank': griewank
+}
 
 @dataclass(order=True)
 class Solution:
@@ -89,8 +117,7 @@ class SwarmSupervisor:
             self.announce_global_best()
     
     def initialize_population(self):
-        self.population = sorted([Solution(pos := np.random.uniform(MIN_VALUE, MAX_VALUE, DIMENSIONS), rastrigin(pos)) for _ in range(GA_POPULATION)])
-        print([elem.value for elem in self.population])
+        self.population = sorted([Solution(pos := np.random.uniform(MIN_VALUE, MAX_VALUE, DIMENSIONS), OBJECTIVE_FUNCTION(pos)) for _ in range(GA_POPULATION)])
         self.calculate_possible_pairs()
         self.calculate_probabilities()
 
@@ -161,7 +188,6 @@ class SwarmSupervisor:
     def select_population(self) -> None:
         self.fetch_childs()
         self.childs.sort()
-        print([elem.value for elem in self.childs])
         population_length = len(self.population)
         n_parents = int(PARENTS_PERCENTAGE * population_length) + 1
         n_childs = int(CHILDREN_PERCENTAGE * population_length) + 1
@@ -171,7 +197,6 @@ class SwarmSupervisor:
         others = self.population[n_parents:] + self.childs[n_childs:]
 
         self.population = sorted(best_ones + list(np.random.choice(others, size=n_random, replace=False)))
-        print([elem.value for elem in self.population])
         self.childs = []
     
     def collect_results(self, agent_type: str, best_value: float):
@@ -272,7 +297,7 @@ class PSOAgent(ParticleAgent):
         position = np.random.uniform(MIN_VALUE, MAX_VALUE, (DIMENSIONS,))
         self.velocities: np.ndarray[float] = np.random.uniform(-1, 1, (DIMENSIONS,))
         
-        self.current: Solution = Solution(position, rastrigin(position))
+        self.current: Solution = Solution(position, OBJECTIVE_FUNCTION(position))
         self.local_best: Solution | None = copy.deepcopy(self.current)
         self.global_best: Solution = Solution()
 
@@ -289,7 +314,7 @@ class PSOAgent(ParticleAgent):
                 C2 * np.random.rand(DIMENSIONS) * (global_best_position - self.current.position)
             )
             self.current.position += self.velocities
-            self.current.value = rastrigin(self.current.position)
+            self.current.value = OBJECTIVE_FUNCTION(self.current.position)
             
             if self.current.value < self.local_best.value:
                 self.local_best = copy.deepcopy(self.current)
@@ -332,7 +357,7 @@ class GAAgent(ParticleAgent):
             self.parent1, self.parent2 = self.supervisor.get_parents()
             offspring = self.crossover()
             offspring = self.mutate(offspring)
-            offspring_score = rastrigin(offspring)
+            offspring_score = OBJECTIVE_FUNCTION(offspring)
             solution = Solution(offspring, offspring_score)
             self.offsprings_queue.put(solution)
             # self.supervisor.update_childs(solution)
@@ -343,9 +368,14 @@ class GAAgent(ParticleAgent):
 
 
 if __name__ == '__main__':
+    function_name = 'ackley'
     adapt = False
     print(f'Is GIL enabled: {sys._is_gil_enabled()}')
+    print(f'Objective function: {function_name}')
     print(f'Is adaptation enabled: {adapt}', end='')
+    
+    OBJECTIVE_FUNCTION = OBJECTIVE_FUNCTIONS[function_name]
+    
     time_start = time.perf_counter()
     
     num_pso = NUM_AGENTS // 2
