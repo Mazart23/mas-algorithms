@@ -13,20 +13,20 @@ import numpy as np
 
 
 # general parameters
-NUM_AGENTS = 400
+NUM_AGENTS = 100
 ITERATIONS = 10
 ADAPTATION_SPEED = 0.1
 ADAPTATION_CHANGE_TOLERATION = 0.05
 
 # PSO parameters
-PSO_ITERATIONS = 200
+PSO_ITERATIONS = 100
 W = 1  # Inertion
 C1 = 1.5  # weight for best local position
 C2 = 1  # weight for best global position
 
 # GA parameters
-GA_ITERATIONS = 200
-GA_POPULATION = 10
+GA_ITERATIONS = 100
+GA_POPULATION = 100
 CROSSOVER_PROB = 0.9
 MUTATION_RATE = 0.1
 PARENTS_PERCENTAGE = 0.2
@@ -71,7 +71,8 @@ OBJECTIVE_FUNCTIONS = {
     'rastrigin': rastrigin,
     'sphere': sphere,
     'ackley': ackley,
-    'griewank': griewank
+    'griewank': griewank,
+    'one_max': one_max
 }
 
 @dataclass(order=True)
@@ -86,7 +87,6 @@ class SwarmSupervisor:
         self.num_ga: int = num_ga
         self.adapt: bool = adapt
 
-        # self.particle_agents: list[ParticleAgent] = []
         self.particle_agents_pso: list[ParticleAgent] = []
         self.particle_agents_ga: list[ParticleAgent] = []
         
@@ -105,7 +105,6 @@ class SwarmSupervisor:
         self._lock_population = threading.Lock()
         self._lock_probabilities = threading.Lock()
         self._lock_global_best = threading.Lock()
-        # self._lock_particle_agents = threading.Lock()
         self._lock_particle_agents_pso = threading.Lock()
         self._lock_particle_agents_ga = threading.Lock()
         
@@ -117,7 +116,7 @@ class SwarmSupervisor:
             self.announce_global_best()
     
     def initialize_population(self):
-        self.population = sorted([Solution(pos := np.random.uniform(MIN_VALUE, MAX_VALUE, DIMENSIONS), OBJECTIVE_FUNCTION(pos)) for _ in range(GA_POPULATION)])
+        self.population = sorted([Solution(pos := np.random.uniform(MIN_VALUE, MAX_VALUE, (DIMENSIONS,)), OBJECTIVE_FUNCTION(pos)) for _ in range(GA_POPULATION)])
         self.calculate_possible_pairs()
         self.calculate_probabilities()
 
@@ -345,11 +344,11 @@ class GAAgent(ParticleAgent):
         self.childs = list(self.offsprings_queue.queue)
         self.local_best = self.childs[0]
 
-    def crossover(self) -> list[int]:
-        return [parent.position[dim] for dim, parent in zip(range(DIMENSIONS), np.random.choice([self.parent1, self.parent2], size=DIMENSIONS))]
+    def crossover(self) -> np.ndarray[float]:
+        return np.array([parent.position[dim] for dim, parent in zip(range(DIMENSIONS), np.random.choice([self.parent1, self.parent2], size=DIMENSIONS))])
 
-    def mutate(self, offspring: list[int]):
-        mutation_vector = list(np.random.uniform(-0.5, 0.5, size=DIMENSIONS) * (np.random.rand(DIMENSIONS) < MUTATION_RATE))
+    def mutate(self, offspring: np.ndarray[float]) -> np.ndarray[float]:
+        mutation_vector = np.random.uniform(-0.5, 0.5, (DIMENSIONS,)) * (np.random.rand(DIMENSIONS) < MUTATION_RATE)
         return offspring + mutation_vector
 
     def execute(self) -> None:
