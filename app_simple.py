@@ -81,7 +81,7 @@ class Solution:
     value: float = float('inf')
     solution_id: uuid.UUID = field(default_factory=uuid.uuid4, compare=False)
 
-class SwarmSupervisor:
+class Supervisor:
     def __init__(self, num_pso: int, num_ga: int, adapt: bool = False):
         self.num_pso: int = num_pso
         self.num_ga: int = num_ga
@@ -116,7 +116,7 @@ class SwarmSupervisor:
             self.announce_global_best()
     
     def initialize_population(self):
-        self.population = sorted([Solution(pos := np.random.uniform(MIN_VALUE, MAX_VALUE, (DIMENSIONS,)), OBJECTIVE_FUNCTION(pos)) for _ in range(GA_POPULATION)])
+        self.population = sorted([Solution(pos := np.random.uniform(MIN_VALUE, MAX_VALUE, (DIMENSIONS,)), OBJECTIVE_FUNCTIONS_DICT(pos)) for _ in range(GA_POPULATION)])
         self.calculate_possible_pairs()
         self.calculate_probabilities()
 
@@ -160,7 +160,7 @@ class SwarmSupervisor:
             with self._lock_global_best:
                 self.global_best = copy.deepcopy(new_best_candidate)
             self.announce_global_best()
-            print(f'[SwarmSupervisor] New global best: {self.global_best.value:.4f} at {self.global_best.position}')
+            print(f'[Supervisor] New global best: {self.global_best.value:.4f} at {self.global_best.position}')
     
     def announce_global_best(self):
         with self._lock_particle_agents_pso:
@@ -250,11 +250,11 @@ class SwarmSupervisor:
 
 
 class ParticleAgent(threading.Thread):
-    def __init__(self, supervisor: SwarmSupervisor):
+    def __init__(self, supervisor: Supervisor):
         self.agent_id = uuid.uuid4()
         super().__init__(daemon=True)
         self.event = threading.Event()
-        self.supervisor: SwarmSupervisor = supervisor
+        self.supervisor: Supervisor = supervisor
         self.local_best: Solution | None = None
     
     def __hash__(self):
@@ -290,13 +290,13 @@ class ParticleAgent(threading.Thread):
         )
 
 class PSOAgent(ParticleAgent):
-    def __init__(self, supervisor: SwarmSupervisor):
+    def __init__(self, supervisor: Supervisor):
         super().__init__(supervisor)
         
         position = np.random.uniform(MIN_VALUE, MAX_VALUE, (DIMENSIONS,))
         self.velocities: np.ndarray[float] = np.random.uniform(-1, 1, (DIMENSIONS,))
         
-        self.current: Solution = Solution(position, OBJECTIVE_FUNCTION(position))
+        self.current: Solution = Solution(position, OBJECTIVE_FUNCTIONS_DICT(position))
         self.local_best: Solution | None = copy.deepcopy(self.current)
         self.global_best: Solution = Solution()
 
@@ -313,7 +313,7 @@ class PSOAgent(ParticleAgent):
                 C2 * np.random.rand(DIMENSIONS) * (global_best_position - self.current.position)
             )
             self.current.position += self.velocities
-            self.current.value = OBJECTIVE_FUNCTION(self.current.position)
+            self.current.value = OBJECTIVE_FUNCTIONS_DICT(self.current.position)
             
             if self.current.value < self.local_best.value:
                 self.local_best = copy.deepcopy(self.current)
@@ -326,7 +326,7 @@ class PSOAgent(ParticleAgent):
         self.supervisor.collect_results('PSO', self.local_best.value)
                 
 class GAAgent(ParticleAgent):
-    def __init__(self, supervisor: SwarmSupervisor):
+    def __init__(self, supervisor: Supervisor):
         super().__init__(supervisor)
         self.local_best: Solution | None = None
         self.parent1: Solution | None = None
@@ -356,7 +356,7 @@ class GAAgent(ParticleAgent):
             self.parent1, self.parent2 = self.supervisor.get_parents()
             offspring = self.crossover()
             offspring = self.mutate(offspring)
-            offspring_score = OBJECTIVE_FUNCTION(offspring)
+            offspring_score = OBJECTIVE_FUNCTIONS_DICT(offspring)
             solution = Solution(offspring, offspring_score)
             self.offsprings_queue.put(solution)
             # self.supervisor.update_childs(solution)
@@ -373,14 +373,14 @@ if __name__ == '__main__':
     print(f'Objective function: {function_name}')
     print(f'Is adaptation enabled: {adapt}', end='')
     
-    OBJECTIVE_FUNCTION = OBJECTIVE_FUNCTIONS[function_name]
+    OBJECTIVE_FUNCTIONS_DICT = OBJECTIVE_FUNCTIONS[function_name]
     
     time_start = time.perf_counter()
     
     num_pso = NUM_AGENTS // 2
     num_ga = NUM_AGENTS - num_pso
 
-    supervisor = SwarmSupervisor(num_pso, num_ga, adapt=adapt)
+    supervisor = Supervisor(num_pso, num_ga, adapt=adapt)
         
     supervisor.initialize_agents([PSOAgent(supervisor) for _ in range(num_pso)], [GAAgent(supervisor) for _ in range(num_ga)])
     supervisor.initialize_global_best()
