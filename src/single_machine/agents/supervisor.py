@@ -18,6 +18,10 @@ class Supervisor:
         get_num_agents = (gp.NUM_AGENTS // len_agent_types + (1 if x < gp.NUM_AGENTS % len_agent_types else 0) for x in range(len_agent_types))
         self.num_pso: int = next(get_num_agents)
         self.num_ga: int = next(get_num_agents)
+        self.num_bee: int = next(get_num_agents)
+        self.num_foa: int = next(get_num_agents)
+        self.num_de: int = next(get_num_agents)
+        self.num_aco: int = next(get_num_agents)
         self.adapt: bool = adapt
 
         self.particle_agents_pso: list[ParticleAgent] = []
@@ -25,7 +29,11 @@ class Supervisor:
         
         self.is_running: dict[str, bool] = {
             AgentType.PSO: False,
-            AgentType.GA: False
+            AgentType.GA: False,
+            AgentType.BEE: False,
+            AgentType.FOA: False,
+            AgentType.DE: False,
+            AgentType.ACO: False,
         }
         
         self.global_best = Solution()
@@ -40,8 +48,19 @@ class Supervisor:
         self._lock_global_best = threading.Lock()
         self._lock_particle_agents_pso = threading.Lock()
         self._lock_particle_agents_ga = threading.Lock()
+        self._lock_particle_agents_bee = threading.Lock()
+        self._lock_particle_agents_foa = threading.Lock()
+        self._lock_particle_agents_de = threading.Lock()
+        self._lock_particle_agents_aco = threading.Lock()
         
-        self.performance = {AgentType.PSO: [], AgentType.GA: []}
+        self.performance = {
+            AgentType.PSO: [], 
+            AgentType.GA: [],
+            AgentType.BEE: [],
+            AgentType.FOA: [],
+            AgentType.DE: [],
+            AgentType.ACO: [],
+        }
     
     def initialize_global_best(self):
         if self.particle_agents_pso:
@@ -56,10 +75,22 @@ class Supervisor:
     def initialize_agents(self):
         agent_obj_lst_pso = [PSOAgent(self) for _ in range(self.num_pso)]
         agent_obj_lst_ga = [GAAgent(self) for _ in range(self.num_ga)]
+        agent_obj_lst_bee = [BEEAgent(self) for _ in range(self.num_bee)]
+        agent_obj_lst_foa = [FOAAgent(self) for _ in range(self.num_foa)]
+        agent_obj_lst_de = [DEAgent(self) for _ in range(self.num_de)]
+        agent_obj_lst_aco = [ACOAgent(self) for _ in range(self.num_aco)]
         with self._lock_particle_agents_pso:
             self.particle_agents_pso += agent_obj_lst_pso
         with self._lock_particle_agents_ga:
             self.particle_agents_ga += agent_obj_lst_ga
+        with self._lock_particle_agents_bee:
+            self.particle_agents_bee += agent_obj_lst_bee
+        with self._lock_particle_agents_foa:
+            self.particle_agents_foa += agent_obj_lst_foa
+        with self._lock_particle_agents_de:
+            self.particle_agents_de += agent_obj_lst_de
+        with self._lock_particle_agents_aco:
+            self.particle_agents_aco += agent_obj_lst_aco
     
     def add_agents(self, agent_obj_lst: list[ParticleAgent]):
         if agent_obj_lst:
