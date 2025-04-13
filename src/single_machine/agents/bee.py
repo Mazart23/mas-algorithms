@@ -10,7 +10,7 @@ from ...utils import global_parameters as gp
 class BeeAgent(ParticleAgent):
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
-        self.agent_type: str | None = AgentType.GA
+        self.agent_type: str | None = AgentType.BEE
         
         self.current: Solution = Solution(np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,)))
         self.current.value = gp.OBJECTIVE_FUNCTION(self.current.position)

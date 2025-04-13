@@ -6,37 +6,30 @@ import copy
 import numpy as np
 
 from .agent import ParticleAgent
-from .pso import PSOAgent
-from .ga import GAAgent
 from ...utils.data_classes import Solution, AgentType
 from ...utils import global_parameters as gp
 
 
 class Supervisor:
     def __init__(self, adapt: bool = False):
+        self.adapt: bool = adapt
+        
         len_agent_types = len(AgentType)
         get_num_agents = (gp.NUM_AGENTS // len_agent_types + (1 if x < gp.NUM_AGENTS % len_agent_types else 0) for x in range(len_agent_types))
-        self.num_pso: int = next(get_num_agents)
-        self.num_ga: int = next(get_num_agents)
-        self.num_bee: int = next(get_num_agents)
-        self.num_foa: int = next(get_num_agents)
-        self.num_de: int = next(get_num_agents)
-        self.num_aco: int = next(get_num_agents)
-        self.adapt: bool = adapt
-
-        self.particle_agents_pso: list[ParticleAgent] = []
-        self.particle_agents_ga: list[ParticleAgent] = []
-        
+        self.num_agents: dict[str, int] = {
+            agent_type: num for agent_type, num in zip(AgentType, get_num_agents)
+        }
+        self.particle_agents: dict[str, list[ParticleAgent]] = {
+            agent: [] for agent in AgentType
+        }
         self.is_running: dict[str, bool] = {
-            AgentType.PSO: False,
-            AgentType.GA: False,
-            AgentType.BEE: False,
-            AgentType.FOA: False,
-            AgentType.DE: False,
-            AgentType.ACO: False,
+            agent: False for agent in AgentType
         }
         
-        self.global_best = Solution()
+        self.global_best: Solution = Solution()
+        self.agent_type_best: dict[str, Solution] = {
+            agent: Solution() for agent in AgentType
+        }
         
         self.population: list[Solution] = []
         self.childs: list[Solution] = []
@@ -46,20 +39,12 @@ class Supervisor:
         self._lock_population = threading.Lock()
         self._lock_probabilities = threading.Lock()
         self._lock_global_best = threading.Lock()
-        self._lock_particle_agents_pso = threading.Lock()
-        self._lock_particle_agents_ga = threading.Lock()
-        self._lock_particle_agents_bee = threading.Lock()
-        self._lock_particle_agents_foa = threading.Lock()
-        self._lock_particle_agents_de = threading.Lock()
-        self._lock_particle_agents_aco = threading.Lock()
+        self._lock_particle_agents: dict[str, threading.Lock] = {
+            agent: threading.Lock() for agent in AgentType
+        }
         
-        self.performance = {
-            AgentType.PSO: [], 
-            AgentType.GA: [],
-            AgentType.BEE: [],
-            AgentType.FOA: [],
-            AgentType.DE: [],
-            AgentType.ACO: [],
+        self.performance: dict[str, list[float]] = {
+            agent: [] for agent in AgentType
         }
     
     def initialize_global_best(self):
@@ -73,38 +58,50 @@ class Supervisor:
         self.calculate_probabilities()
 
     def initialize_agents(self):
-        agent_obj_lst_pso = [PSOAgent(self) for _ in range(self.num_pso)]
-        agent_obj_lst_ga = [GAAgent(self) for _ in range(self.num_ga)]
-        agent_obj_lst_bee = [BEEAgent(self) for _ in range(self.num_bee)]
-        agent_obj_lst_foa = [FOAAgent(self) for _ in range(self.num_foa)]
-        agent_obj_lst_de = [DEAgent(self) for _ in range(self.num_de)]
-        agent_obj_lst_aco = [ACOAgent(self) for _ in range(self.num_aco)]
-        with self._lock_particle_agents_pso:
-            self.particle_agents_pso += agent_obj_lst_pso
-        with self._lock_particle_agents_ga:
-            self.particle_agents_ga += agent_obj_lst_ga
-        with self._lock_particle_agents_bee:
-            self.particle_agents_bee += agent_obj_lst_bee
-        with self._lock_particle_agents_foa:
-            self.particle_agents_foa += agent_obj_lst_foa
-        with self._lock_particle_agents_de:
-            self.particle_agents_de += agent_obj_lst_de
-        with self._lock_particle_agents_aco:
-            self.particle_agents_aco += agent_obj_lst_aco
+        for agent_type in AgentType:
+            new_agent_obj_lst = [agent_type.value(self) for _ in range(self.num_agents[agent_type])]
+            with self._lock_particle_agents[agent_type]:
+                self.particle_agents[agent_type] += new_agent_obj_lst
     
     def add_agents(self, agent_obj_lst: list[ParticleAgent]):
         if agent_obj_lst:
-            if isinstance(agent_obj_lst[0], PSOAgent):
-                with self._lock_particle_agents_pso:
-                    self.particle_agents_pso += agent_obj_lst
-                for agent in agent_obj_lst:
-                    agent.start()
-                    agent.set_global_best(copy.deepcopy(self.global_best))
-            elif isinstance(agent_obj_lst[0], GAAgent):
-                with self._lock_particle_agents_ga:
-                    self.particle_agents_ga += agent_obj_lst
-                for agent in agent_obj_lst:
-                    agent.start()
+            match agent_obj_lst[0].agent_type:
+                case AgentType.PSO:
+                    with self._lock_particle_agents_pso:
+                        self.particle_agents_pso += agent_obj_lst
+                    for agent in agent_obj_lst:
+                        agent.start()
+                        agent.set_global_best(copy.deepcopy(self.global_best))
+                case AgentType.GA:
+                    with self._lock_particle_agents_pso:
+                        self.particle_agents_pso += agent_obj_lst
+                    for agent in agent_obj_lst:
+                        agent.start()
+                        agent.set_global_best(copy.deepcopy(self.global_best))
+                case AgentType.PSO:
+                    with self._lock_particle_agents_pso:
+                        self.particle_agents_pso += agent_obj_lst
+                    for agent in agent_obj_lst:
+                        agent.start()
+                        agent.set_global_best(copy.deepcopy(self.global_best))
+                case AgentType.PSO:
+                    with self._lock_particle_agents_pso:
+                        self.particle_agents_pso += agent_obj_lst
+                    for agent in agent_obj_lst:
+                        agent.start()
+                        agent.set_global_best(copy.deepcopy(self.global_best))
+                case AgentType.PSO:
+                    with self._lock_particle_agents_pso:
+                        self.particle_agents_pso += agent_obj_lst
+                    for agent in agent_obj_lst:
+                        agent.start()
+                        agent.set_global_best(copy.deepcopy(self.global_best))
+                case AgentType.PSO:
+                    with self._lock_particle_agents_pso:
+                        self.particle_agents_pso += agent_obj_lst
+                    for agent in agent_obj_lst:
+                        agent.start()
+                        agent.set_global_best(copy.deepcopy(self.global_best))
     
     def remove_agents(self, agent_type: str, num_to_remove: int):
         match agent_type:

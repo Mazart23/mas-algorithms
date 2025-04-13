@@ -10,7 +10,7 @@ class DEAgent(ParticleAgent):
 
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
-        self.agent_type: str | None = AgentType.GA
+        self.agent_type: str | None = AgentType.DE
         
         self.local_best = Solution(np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS))
         self.local_best.value = gp.OBJECTIVE_FUNCTION(self.local_best.position)

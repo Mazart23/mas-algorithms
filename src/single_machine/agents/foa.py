@@ -10,7 +10,7 @@ from ...utils import global_parameters as gp
 class FOAAgent(ParticleAgent):
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
-        self.agent_type: str | None = AgentType.GA
+        self.agent_type: str | None = AgentType.FOA
         
         self.position = np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS)
         self.local_best = Solution(self.position, gp.OBJECTIVE_FUNCTION(self.position))
