@@ -1,16 +1,16 @@
 from __future__ import annotations
-import copy
 
 import numpy as np
 
 from .agent import ParticleAgent
-from ...utils.data_classes import Solution, AgentType
+from ...utils.custom_objects.data_classes import Solution
 from ...utils import global_parameters as gp
 
 
 class ACOAgent(ParticleAgent):
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
+
         self.num_ants = 10
         self.evaporation_rate = 0.5
         self.alpha = 1.0
@@ -55,4 +55,4 @@ class ACOAgent(ParticleAgent):
 
             self.childs.append(best_solution)
 
-        self.supervisor.collect_results(self.agent_type, self.local_best.value)
+        self.supervisor.collect_results(self.__class__, self.local_best.value)

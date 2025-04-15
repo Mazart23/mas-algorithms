@@ -3,7 +3,8 @@ import uuid
 import threading
 import ctypes
 
-from ...utils.data_classes import Solution
+from ...utils.custom_objects.data_classes import Solution
+
 
 class ParticleAgent(threading.Thread):
     def __init__(self, supervisor: 'Supervisor'):
@@ -12,7 +13,6 @@ class ParticleAgent(threading.Thread):
         self.event = threading.Event()
         self.supervisor: 'Supervisor' = supervisor
         self.local_best: Solution | None = None
-        self.agent_type: str | None = None
     
     def __hash__(self):
         return hash(self.agent_id)

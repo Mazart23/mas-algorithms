@@ -4,14 +4,13 @@ import copy
 import numpy as np
 
 from .agent import ParticleAgent
-from ...utils.data_classes import Solution, AgentType
+from ...utils.custom_objects.data_classes import Solution
 from ...utils import global_parameters as gp
 
 
 class PSOAgent(ParticleAgent):
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
-        self.agent_type: str | None = AgentType.PSO
         
         position = np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,))
         self.velocities: np.ndarray[float] = np.random.uniform(-1, 1, (gp.DIMENSIONS,))
@@ -38,6 +37,6 @@ class PSOAgent(ParticleAgent):
             if self.current.value < self.local_best.value:
                 self.local_best = copy.deepcopy(self.current)
                 if self.global_best.value > self.local_best.value:
-                    self.supervisor.update_global_best(self.local_best, self.agent_type)
+                    self.supervisor.update_global_best(self.local_best, self.__class__)
         
-        self.supervisor.collect_results(AgentType.PSO, self.local_best.value)
+        self.supervisor.collect_results(self.__class__, self.local_best.value)
