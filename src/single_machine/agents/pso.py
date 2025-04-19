@@ -16,12 +16,9 @@ class PSOAgent(ParticleAgent):
         self.velocities: np.ndarray[float] = np.random.uniform(-1, 1, (gp.DIMENSIONS,))
         
         self.current: Solution = Solution(position, gp.OBJECTIVE_FUNCTION(position))
-        self.local_best: Solution | None = copy.deepcopy(self.current)
+        self.local_best: Solution = copy.deepcopy(self.current)
         self.global_best: Solution = Solution()
 
-    def set_global_best(self, global_best: Solution):
-        self.global_best = global_best
-    
     def execute(self) -> None:
         for iteration in range(gp.PSO_ITERATIONS):
             global_best_position = self.global_best.position

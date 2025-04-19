@@ -28,7 +28,10 @@ class ParticleAgent(threading.Thread):
     
     def execute(self) -> None:
         pass
-    
+
+    def set_global_best(self, global_best: Solution):
+        self.global_best = global_best
+
     def run(self):
         while True:
             self.event.wait()

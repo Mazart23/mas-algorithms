@@ -12,8 +12,7 @@ class BeeAgent(ParticleAgent):
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
         
-        self.current: Solution = Solution(np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,)))
-        self.current.value = gp.OBJECTIVE_FUNCTION(self.current.position)
+        self.current: Solution = Solution(pos := np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,)), gp.OBJECTIVE_FUNCTION(pos))
         self.local_best: Solution = copy.deepcopy(self.current)
 
     def explore_neighbourhood(self, position):
@@ -29,6 +28,7 @@ class BeeAgent(ParticleAgent):
                 self.current = Solution(new_position, new_value)
                 if new_value < self.local_best.value:
                     self.local_best = copy.deepcopy(self.current)
-                    self.supervisor.update_global_best(self.local_best, self.__class__)
+                    if self.global_best.value > self.local_best.value:
+                        self.supervisor.update_global_best(self.local_best, self.__class__)
 
         self.supervisor.collect_results(self.__class__, self.local_best.value)

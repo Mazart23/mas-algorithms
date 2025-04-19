@@ -5,6 +5,7 @@ import time
 from .agents.supervisor import Supervisor
 from ..utils.functions import OBJECTIVE_FUNCTIONS_DICT
 from ..utils import global_parameters as gp
+from ..utils.custom_objects.enums import AgentType
 
 
 def run():
@@ -28,7 +29,7 @@ def run():
     
     for i in range(gp.ITERATIONS):
         print(f'\n\n##############\nIteration: {i}')
-        print(f'Number of agents:\n\tPSO: {supervisor.num_pso}\n\tGA: {supervisor.num_ga}\n')
+        print(f'''Number of agents:{''.join((f'\n\t{agent_type.name}: {supervisor.num_agents[agent_type]}' for agent_type in AgentType))}\n''')
         supervisor.start_agents()
         supervisor.wait_for_agents()
 
@@ -39,6 +40,9 @@ def run():
     
     time_end = time.perf_counter()
     print(f'\nTime execution: {time_end - time_start}')
-    print(f'Best global solution PSO: {supervisor.global_best.value:.4f} at {supervisor.global_best.position}')
-    ga_best = min(supervisor.population)
-    print(f'Best global solution GA: {ga_best.value:.4f} at {ga_best.position}')
+    for agent_type in AgentType:
+        if agent_type == AgentType.GA:
+            best = min(supervisor.population)
+        else:
+            best = supervisor.agent_type_best[agent_type]
+        print(f'Best global solution {agent_type.name}: {best.value:.4f} at {best.position}')

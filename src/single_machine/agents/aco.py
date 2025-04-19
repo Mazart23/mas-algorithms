@@ -51,7 +51,7 @@ class ACOAgent(ParticleAgent):
 
             if self.local_best.position is None or best_solution.value < self.local_best.value:
                 self.local_best = best_solution
-                self.supervisor.update_global_best(self.local_best)
+                self.supervisor.update_global_best(self.local_best, self.__class__)
 
             self.childs.append(best_solution)
 

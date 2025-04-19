@@ -11,8 +11,8 @@ class DEAgent(ParticleAgent):
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
         
-        self.local_best = Solution(np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS))
-        self.local_best.value = gp.OBJECTIVE_FUNCTION(self.local_best.position)
+        self.local_best = Solution(pos := np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS), gp.OBJECTIVE_FUNCTION(pos))
+        self.global_best: Solution = Solution()
 
     def mutate(self, r1, r2, r3):
         return np.clip(r1 + gp.DE_F * (r2 - r3), gp.MIN_VALUE, gp.MAX_VALUE)
@@ -28,6 +28,7 @@ class DEAgent(ParticleAgent):
             trial_value = gp.OBJECTIVE_FUNCTION(trial)
             if trial_value < self.local_best.value:
                 self.local_best = Solution(trial, trial_value)
-                self.supervisor.update_global_best(self.local_best, self.__class__)
+                if self.global_best.value > self.local_best.value:
+                    self.supervisor.update_global_best(self.local_best, self.__class__)
 
         self.supervisor.collect_results(self.__class__, self.local_best.value)

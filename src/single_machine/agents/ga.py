@@ -12,11 +12,14 @@ class GAAgent(ParticleAgent):
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
         
-        self.local_best: Solution | None = None
+        self.local_best: Solution = Solution()
         self.parent1: Solution | None = None
         self.parent2: Solution | None = None
         self.offsprings_queue: queue.PriorityQueue[Solution] = queue.PriorityQueue()
         self.childs: list[Solution] = []
+
+    def set_global_best(self, global_best: Solution):
+        pass
 
     def get_childs(self):
         return self.childs

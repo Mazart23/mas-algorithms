@@ -48,9 +48,13 @@ class Supervisor:
         }
     
     def initialize_global_best(self):
-        if self.particle_agents[AgentType.PSO]:
-            self.global_best = copy.deepcopy(min([agent.local_best for agent in self.particle_agents_pso], key=lambda s: s.value))
-            self.announce_global_best()
+        curr_global_best: Solution = Solution()
+        for agent_type in AgentType:
+            agent_type_best_temp = copy.deepcopy(min([agent.local_best for agent in self.particle_agents[agent_type]], key=lambda s: s.value))
+            self.agent_type_best[agent_type] = agent_type_best_temp
+            if agent_type_best_temp.value < curr_global_best.value:
+                self.global_best = agent_type_best_temp
+        self.announce_global_best()
     
     def initialize_population(self):
         self.population = sorted([Solution(pos := np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,)), gp.OBJECTIVE_FUNCTION(pos)) for _ in range(gp.GA_POPULATION)])
@@ -69,7 +73,7 @@ class Supervisor:
             self.particle_agents[agent_type] += agent_obj_lst
         for agent in agent_obj_lst:
             agent.start()
-            agent.set_global_best(copy.deepcopy(self.global_best))
+            agent.set_global_best(self.global_best)
     
     def remove_agents(self, agent_type: AgentType, num_to_remove: int):
         with self._lock_particle_agents[agent_type]:
@@ -88,10 +92,10 @@ class Supervisor:
     
     def announce_global_best(self):
         for agent_type in AgentType:
-            if agent_type != AgentType.GA
+            if agent_type != AgentType.GA:
                 with self._lock_particle_agents[agent_type]:
                     for particle_agent in self.particle_agents[agent_type]:
-                        particle_agent.set_global_best(copy.deepcopy(self.global_best))
+                        particle_agent.set_global_best(self.global_best)
 
     def fetch_childs(self):
         for agent in self.particle_agents[AgentType.GA]:
@@ -147,27 +151,22 @@ class Supervisor:
             self.remove_agents(AgentType.PSO, num_to_change)
     
     def start_agents(self):
-        self.is_running[AgentType.PSO] = True
-        self.is_running[AgentType.GA] = True
-        for agent in self.particle_agents_pso:
-            agent.go()
-        for agent in self.particle_agents_ga:
-            agent.go()
+        for agent_type in AgentType:
+            self.is_running[agent_type] = True
+            for agent in self.particle_agents[agent_type]:
+                agent.go()
     
     def run_agents(self):
-        for agent in self.particle_agents_pso:
-            agent.start()
-        for agent in self.particle_agents_ga:
-            agent.start()
+        for agent_type in AgentType:
+            for agent in self.particle_agents[agent_type]:
+                agent.start()
     
     def wait_for_agents(self):
         while True:
-            if self.is_running[AgentType.PSO] and not any(agent.event.is_set() for agent in self.particle_agents_pso):
-                self.is_running[AgentType.PSO] = False
-                print('####### PSO STOPPED')
-            if self.is_running[AgentType.GA] and not any(agent.event.is_set() for agent in self.particle_agents_ga):
-                self.is_running[AgentType.GA] = False
-                print('####### GA STOPPED')
-            if not self.is_running[AgentType.PSO] and not self.is_running[AgentType.GA]:
-                break
+            for agent_type in AgentType:
+                if self.is_running[agent_type] and not any(agent.event.is_set() for agent in self.particle_agents[agent_type]):
+                    self.is_running[agent_type] = False
+                    print(f'####### {agent_type.name} STOPPED')
+                if not any(self.is_running.values()):
+                    break
             time.sleep(0.01)
