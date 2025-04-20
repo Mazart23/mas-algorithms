@@ -28,7 +28,7 @@ class BeeAgent(ParticleAgent):
                 self.current = Solution(new_position, new_value)
                 if new_value < self.local_best.value:
                     self.local_best = copy.deepcopy(self.current)
-                    if self.global_best.value > self.local_best.value:
-                        self.supervisor.update_global_best(self.local_best, self.__class__)
+                    if self.global_best_agent_type.value > self.local_best.value:
+                        self.supervisor.update_global_best_agent_type(self.local_best, self.__class__)
 
         self.supervisor.collect_results(self.__class__, self.local_best.value)

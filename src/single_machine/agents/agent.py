@@ -12,7 +12,8 @@ class ParticleAgent(threading.Thread):
         super().__init__(daemon=True)
         self.event = threading.Event()
         self.supervisor: 'Supervisor' = supervisor
-        self.local_best: Solution | None = None
+        self.local_best: Solution = Solution()
+        self.global_best_agent_type: Solution = Solution()
     
     def __hash__(self):
         return hash(self.agent_id)
@@ -29,8 +30,8 @@ class ParticleAgent(threading.Thread):
     def execute(self) -> None:
         pass
 
-    def set_global_best(self, global_best: Solution):
-        self.global_best = global_best
+    def set_global_best_agent_type(self, global_best: Solution):
+        self.global_best_agent_type = global_best
 
     def run(self):
         while True:

@@ -39,6 +39,9 @@ class Supervisor:
         self._lock_population = threading.Lock()
         self._lock_probabilities = threading.Lock()
         self._lock_global_best = threading.Lock()
+        self._lock_global_best_agents: dict[AgentType, threading.Lock] = {
+            agent: threading.Lock() for agent in AgentType
+        }
         self._lock_particle_agents: dict[AgentType, threading.Lock] = {
             agent: threading.Lock() for agent in AgentType
         }
@@ -84,18 +87,28 @@ class Supervisor:
                 worst_agent.kill()
     
     def update_global_best(self, new_best_candidate: Solution, agent_type: AgentType):
-        if new_best_candidate.value < self.global_best.value:
-            with self._lock_global_best:
-                self.global_best = copy.deepcopy(new_best_candidate)
-            self.announce_global_best()
-            print(f'[Supervisor] New global best: {self.global_best.value:.4f} at {self.global_best.position}')
+        if new_best_candidate.value < self.agent_type_best[agent_type].value:
+            copy_solution = copy.deepcopy(new_best_candidate)
+            with self._lock_global_best_agents[agent_type]:
+                self.agent_type_best[agent_type] = copy_solution
+            self.announce_global_best_agent_type(agent_type)
+            if new_best_candidate.value < self.global_best.value:
+                copy_solution = copy.deepcopy(copy_solution)
+                with self._lock_global_best:
+                    self.global_best = copy_solution
+                self.announce_global_best()
+                print(f'[Supervisor] New global best: {self.global_best.value:.4f} at {self.global_best.position}')
+    
+    def announce_global_best_agent_type(self, agent_type: AgentType):
+        with self._lock_particle_agents[agent_type]:
+            for particle_agent in self.particle_agents[agent_type]:
+                particle_agent.set_global_best_agent_type(self.global_best)
     
     def announce_global_best(self):
-        for agent_type in AgentType:
-            if agent_type != AgentType.GA:
-                with self._lock_particle_agents[agent_type]:
-                    for particle_agent in self.particle_agents[agent_type]:
-                        particle_agent.set_global_best(self.global_best)
+        agent_type = AgentType.PSO
+        with self._lock_particle_agents[agent_type]:
+            for particle_agent in self.particle_agents[agent_type]:
+                particle_agent.set_global_best(self.global_best)
 
     def fetch_childs(self):
         for agent in self.particle_agents[AgentType.GA]:

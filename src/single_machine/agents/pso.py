@@ -19,6 +19,9 @@ class PSOAgent(ParticleAgent):
         self.local_best: Solution = copy.deepcopy(self.current)
         self.global_best: Solution = Solution()
 
+    def set_global_best(self, global_best: Solution):
+        self.global_best = global_best
+
     def execute(self) -> None:
         for iteration in range(gp.PSO_ITERATIONS):
             global_best_position = self.global_best.position
@@ -33,7 +36,7 @@ class PSOAgent(ParticleAgent):
             
             if self.current.value < self.local_best.value:
                 self.local_best = copy.deepcopy(self.current)
-                if self.global_best.value > self.local_best.value:
-                    self.supervisor.update_global_best(self.local_best, self.__class__)
+                if self.global_best_agent_type.value > self.local_best.value:
+                    self.supervisor.update_global_best_agent_type(self.local_best, self.__class__)
         
         self.supervisor.collect_results(self.__class__, self.local_best.value)
