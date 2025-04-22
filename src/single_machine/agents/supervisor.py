@@ -27,7 +27,7 @@ class Supervisor:
         }
         
         self.global_best: Solution = Solution()
-        self.agent_type_best: AgentType[str, Solution] = {
+        self.agent_type_best: dict[AgentType, Solution] = {
             agent: Solution() for agent in AgentType
         }
         
@@ -86,7 +86,8 @@ class Supervisor:
                 particle_agents_obj.remove(worst_agent)
                 worst_agent.kill()
     
-    def update_global_best(self, new_best_candidate: Solution, agent_type: AgentType):
+    def update_global_best(self, new_best_candidate: Solution, agent_class: type):
+        agent_type = AgentType(agent_class)
         if new_best_candidate.value < self.agent_type_best[agent_type].value:
             copy_solution = copy.deepcopy(new_best_candidate)
             with self._lock_global_best_agents[agent_type]:
@@ -181,5 +182,5 @@ class Supervisor:
                     self.is_running[agent_type] = False
                     print(f'####### {agent_type.name} STOPPED')
                 if not any(self.is_running.values()):
-                    break
+                    return
             time.sleep(0.01)
