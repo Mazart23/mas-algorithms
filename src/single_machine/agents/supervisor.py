@@ -11,9 +11,10 @@ from ...utils import global_parameters as gp
 
 
 class Supervisor:
-    def __init__(self, adapt: bool = False):
+    def __init__(self, adapt: bool = False, monitor_data: bool = False):
         self.adapt: bool = adapt
-        
+        self.monitor_data: bool = monitor_data
+
         len_agent_types = len(AgentType)
         get_num_agents = (gp.NUM_AGENTS // len_agent_types + (1 if x < gp.NUM_AGENTS % len_agent_types else 0) for x in range(len_agent_types))
         self.num_agents: dict[AgentType, int] = {
@@ -49,6 +50,10 @@ class Supervisor:
         self.performance: dict[AgentType, list[float]] = {
             agent: [] for agent in AgentType
         }
+
+        self.avg_perfomance_history: list[dict[AgentType, float]] = []
+        self.best_perfomance_history: list[dict[AgentType, float]] = []
+        self.nums_history: list[dict[AgentType, int]] = []
     
     def initialize_global_best(self):
         curr_global_best: Solution = Solution()
@@ -60,7 +65,9 @@ class Supervisor:
         self.announce_global_best()
     
     def initialize_population(self):
-        self.population = sorted([Solution(pos := np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,)), gp.OBJECTIVE_FUNCTION(pos)) for _ in range(gp.GA_POPULATION)])
+        self.set_population(
+            sorted([Solution(pos := np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,)), gp.OBJECTIVE_FUNCTION(pos)) for _ in range(gp.GA_POPULATION)])
+        )
         self.calculate_possible_pairs()
         self.calculate_probabilities()
 
@@ -70,6 +77,10 @@ class Supervisor:
             with self._lock_particle_agents[agent_type]:
                 self.particle_agents[agent_type] += new_agent_obj_lst
     
+    def set_population(self, population: list) -> None:
+        self.population = population
+        self.update_global_best(self.population[0], AgentType.GA.value)
+
     def add_agents(self, agent_type: AgentType, num_to_add: int):
         agent_obj_lst = [agent_type.value(self) for _ in range(num_to_add)]
         with self._lock_particle_agents[agent_type]:
@@ -80,8 +91,8 @@ class Supervisor:
     
     def remove_agents(self, agent_type: AgentType, num_to_remove: int):
         with self._lock_particle_agents[agent_type]:
+            particle_agents_obj = self.particle_agents[agent_type]
             for _ in range(num_to_remove):
-                particle_agents_obj = self.particle_agents[agent_type]
                 worst_agent = max(particle_agents_obj)
                 particle_agents_obj.remove(worst_agent)
                 worst_agent.kill()
@@ -139,12 +150,30 @@ class Supervisor:
         best_ones = self.population[:n_parents] + self.childs[:n_childs]
         others = self.population[n_parents:] + self.childs[n_childs:]
 
-        self.population = sorted(best_ones + list(np.random.choice(others, size=n_random, replace=False)))
+        self.set_population(sorted(best_ones + list(np.random.choice(others, size=n_random, replace=False))))
         self.childs = []
     
     def collect_results(self, agent_type_class: type, best_value: float):
         self.performance[AgentType(agent_type_class)].append(best_value)
-        
+    
+    def save_nums(self):
+        if not self.monitor_data:
+            return
+        print(f'''Number of agents:{''.join((f'\n\t{agent_type.name}: {self.num_agents[agent_type]}' for agent_type in AgentType))}\n''')
+        self.avg_perfomance_history.append(
+            copy.deepcopy(self.num_agents)
+        )
+    
+    def save_performance(self):
+        if not self.monitor_data:
+            return
+        self.avg_perfomance_history.append(
+            {agent_type: np.mean(self.performance[agent_type][-self.num_agents[agent_type]:]) for agent_type in AgentType}
+        )
+        self.best_perfomance_history.append(
+            {agent_type: min(self.performance[agent_type][-self.num_agents[agent_type]:]) for agent_type in AgentType}
+        )
+    
     def adjust_agent_ratio(self):
         avg_pso = np.mean(self.performance[AgentType.PSO][-self.num_pso:])
         avg_ga = np.mean(self.performance[AgentType.GA][-self.num_ga:])
@@ -183,4 +212,4 @@ class Supervisor:
                     print(f'####### {agent_type.name} STOPPED')
                 if not any(self.is_running.values()):
                     return
-            time.sleep(0.01)
+            time.sleep(1)

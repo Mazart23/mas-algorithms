@@ -9,8 +9,9 @@ from ..utils.custom_objects.enums import AgentType
 
 
 def run():
-    function_name = 'ackley'
+    function_name = 'rastrigin'
     adapt = False
+    monitor_data = False
     print(f'Is GIL enabled: {sys._is_gil_enabled()}')
     print(f'Objective function: {function_name}')
     print(f'Is adaptation enabled: {adapt}', end='')
@@ -19,7 +20,7 @@ def run():
     
     time_start = time.perf_counter()
 
-    supervisor = Supervisor(adapt=adapt,)
+    supervisor = Supervisor(adapt=adapt, monitor_data=monitor_data)
         
     supervisor.initialize_agents()
     supervisor.initialize_global_best()
@@ -29,12 +30,15 @@ def run():
     
     for i in range(gp.ITERATIONS):
         print(f'\n\n##############\nIteration: {i}')
-        print(f'''Number of agents:{''.join((f'\n\t{agent_type.name}: {supervisor.num_agents[agent_type]}' for agent_type in AgentType))}\n''')
+        supervisor.save_nums()
+
         supervisor.start_agents()
         supervisor.wait_for_agents()
 
         supervisor.select_population()
         
+        supervisor.save_performance()
+
         if supervisor.adapt:
             supervisor.adjust_agent_ratio()
     
