@@ -10,17 +10,19 @@ from ..utils.custom_objects.enums import AgentType
 
 def run():
     function_name = 'rastrigin'
-    adapt = False
-    monitor_data = False
+    adapt_num_agents = False
+    adapt_parameters = False
+    visualize_data = False
     print(f'Is GIL enabled: {sys._is_gil_enabled()}')
     print(f'Objective function: {function_name}')
-    print(f'Is adaptation enabled: {adapt}', end='')
+    print(f'Is adaptation of number of agents enabled: {adapt_num_agents}')
+    print(f'Is adaptation of agent parameters enabled: {adapt_parameters}', end='')
     
     gp.OBJECTIVE_FUNCTION = OBJECTIVE_FUNCTIONS_DICT[function_name]
     
     time_start = time.perf_counter()
 
-    supervisor = Supervisor(adapt=adapt, monitor_data=monitor_data)
+    supervisor = Supervisor(adapt_num_agents, adapt_parameters, visualize_data)
         
     supervisor.initialize_agents()
     supervisor.initialize_global_best()
@@ -36,11 +38,9 @@ def run():
         supervisor.wait_for_agents()
 
         supervisor.select_population()
-        
         supervisor.save_performance()
-
-        if supervisor.adapt:
-            supervisor.adjust_agent_ratio()
+        
+        supervisor.adapt()
     
     time_end = time.perf_counter()
     print(f'\nTime execution: {time_end - time_start}')

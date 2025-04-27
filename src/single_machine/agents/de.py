@@ -11,14 +11,21 @@ class DEAgent(ParticleAgent):
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
         
+        self.F = gp.F_DE
+        self.CR = gp.CR_DE
+        
         self.local_best = Solution(pos := np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS), gp.OBJECTIVE_FUNCTION(pos))
 
     def mutate(self, r1, r2, r3):
-        return np.clip(r1 + gp.DE_F * (r2 - r3), gp.MIN_VALUE, gp.MAX_VALUE)
+        return np.clip(r1 + self.F * (r2 - r3), gp.MIN_VALUE, gp.MAX_VALUE)
 
     def crossover(self, target, mutant):
-        return np.array([mutant[i] if np.random.rand() < gp.DE_CR else target[i] for i in range(gp.DIMENSIONS)])
+        return np.array([mutant[i] if np.random.rand() < self.CR else target[i] for i in range(gp.DIMENSIONS)])
 
+    def adapt(self, exploration: int, exploatation: int):
+        self.F *= exploration * exploatation
+        self.CR *= exploration * exploatation
+    
     def execute(self):
         for iteration in range(gp.DE_ITERATIONS):
             r1, r2, r3 = [np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS) for _ in range(3)]

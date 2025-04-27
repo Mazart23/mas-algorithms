@@ -12,14 +12,19 @@ class BeeAgent(ParticleAgent):
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
         
+        self.W = gp.W_BEE
+        
         self.current: Solution = Solution(pos := np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,)), gp.OBJECTIVE_FUNCTION(pos))
         self.local_best: Solution = copy.deepcopy(self.current)
 
     def explore_neighbourhood(self, position):
         phi = np.random.uniform(-1, 1, gp.DIMENSIONS)
         partner = np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS)
-        return np.clip(position + phi * (position - partner), gp.MIN_VALUE, gp.MAX_VALUE)
+        return np.clip(position + self.W * phi * (position - partner), gp.MIN_VALUE, gp.MAX_VALUE)
 
+    def adapt(self, exploration: int, exploatation: int):
+        self.W *= exploatation * exploration
+    
     def execute(self):
         for iteration in range(gp.BEE_ITERATIONS):
             new_position = self.explore_neighbourhood(self.current.position)

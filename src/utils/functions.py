@@ -21,14 +21,9 @@ def griewank(x):
     prod = np.prod([np.cos(xi / np.sqrt(i + 1)) for i, xi in enumerate(x)])
     return sum1 - prod + 1
 
-def one_max(x):
-    x = np.round(x).astype(int)
-    return -sum(x)
-
 OBJECTIVE_FUNCTIONS_DICT = {
     'rastrigin': rastrigin,
     'sphere': sphere,
     'ackley': ackley,
     'griewank': griewank,
-    'one_max': one_max
 }

@@ -8,15 +8,16 @@ import numpy as np
 from ...utils.custom_objects.data_classes import Solution
 from ...utils.custom_objects.enums import AgentType
 from ...utils import global_parameters as gp
-
+from .adjuster import SoftmaxAdjuster
 
 class Supervisor:
-    def __init__(self, adapt: bool = False, monitor_data: bool = False):
-        self.adapt: bool = adapt
-        self.monitor_data: bool = monitor_data
-
-        len_agent_types = len(AgentType)
-        get_num_agents = (gp.NUM_AGENTS // len_agent_types + (1 if x < gp.NUM_AGENTS % len_agent_types else 0) for x in range(len_agent_types))
+    def __init__(self, adapt_num_agents: bool = False, adapt_parameters: bool = False, visualize_data: bool = False):
+        self.adapt_num_agents: bool = adapt_num_agents
+        self.adapt_parameters: bool = adapt_parameters
+        self.visualize_data: bool = visualize_data
+        
+        self.len_agent_types = len(AgentType)
+        get_num_agents = (gp.NUM_AGENTS // self.len_agent_types + (1 if x < gp.NUM_AGENTS % self.len_agent_types else 0) for x in range(self.len_agent_types))
         self.num_agents: dict[AgentType, int] = {
             agent_type: num for agent_type, num in zip(AgentType, get_num_agents)
         }
@@ -54,6 +55,8 @@ class Supervisor:
         self.avg_perfomance_history: list[dict[AgentType, float]] = []
         self.best_perfomance_history: list[dict[AgentType, float]] = []
         self.nums_history: list[dict[AgentType, int]] = []
+        
+        self.num_agents_adjuster: SoftmaxAdjuster = SoftmaxAdjuster(self)
     
     def initialize_global_best(self):
         curr_global_best: Solution = Solution()
@@ -143,8 +146,8 @@ class Supervisor:
         self.fetch_childs()
         self.childs.sort()
         population_length = len(self.population)
-        n_parents = int(gp.PARENTS_PERCENTAGE * population_length) + 1
-        n_childs = int(gp.CHILDREN_PERCENTAGE * population_length) + 1
+        n_parents = int(gp.PARENTS_PERCENTAGE_GA * population_length) + 1
+        n_childs = int(gp.CHILDREN_PERCENTAGE_GA * population_length) + 1
         n_random = population_length - n_parents - n_childs
 
         best_ones = self.population[:n_parents] + self.childs[:n_childs]
@@ -157,16 +160,14 @@ class Supervisor:
         self.performance[AgentType(agent_type_class)].append(best_value)
     
     def save_nums(self):
-        if not self.monitor_data:
+        if not self.visualize_data:
             return
         print(f'''Number of agents:{''.join((f'\n\t{agent_type.name}: {self.num_agents[agent_type]}' for agent_type in AgentType))}\n''')
-        self.avg_perfomance_history.append(
+        self.nums_history.append(
             copy.deepcopy(self.num_agents)
         )
     
     def save_performance(self):
-        if not self.monitor_data:
-            return
         self.avg_perfomance_history.append(
             {agent_type: np.mean(self.performance[agent_type][-self.num_agents[agent_type]:]) for agent_type in AgentType}
         )
@@ -174,24 +175,11 @@ class Supervisor:
             {agent_type: min(self.performance[agent_type][-self.num_agents[agent_type]:]) for agent_type in AgentType}
         )
     
-    def adjust_agent_ratio(self):
-        avg_pso = np.mean(self.performance[AgentType.PSO][-self.num_pso:])
-        avg_ga = np.mean(self.performance[AgentType.GA][-self.num_ga:])
-
-        num_to_change = max(int(min(self.num_pso, self.num_ga) * gp.ADAPTATION_SPEED), 1)
-        
-        if avg_ga > avg_pso * (1 + gp.ADAPTATION_CHANGE_TOLERATION) and self.num_ga > 1:
-            num_to_change = min(num_to_change, self.num_ga - 1)
-            self.num_pso += num_to_change
-            self.num_ga -= num_to_change
-            self.add_agents(AgentType.PSO, num_to_change)
-            self.remove_agents(AgentType.GA, num_to_change)
-        elif avg_pso > avg_ga * (1 + gp.ADAPTATION_CHANGE_TOLERATION) and self.num_pso > 1:
-            num_to_change = min(num_to_change, self.num_pso - 1)
-            self.num_ga += num_to_change
-            self.num_pso -= num_to_change
-            self.add_agents([AgentType.GA.value(self) for _ in range(num_to_change)])
-            self.remove_agents(AgentType.PSO, num_to_change)
+    def adapt(self):
+        if self.adapt_num_agents:
+            self.num_agents_adjuster.step()
+        if self.adapt_parameters:
+            pass
     
     def start_agents(self):
         for agent_type in AgentType:

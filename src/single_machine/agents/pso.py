@@ -12,6 +12,10 @@ class PSOAgent(ParticleAgent):
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
         
+        self.W = gp.W
+        self.C1 = gp.C1
+        self.C2 = gp.C2
+        
         position = np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,))
         self.velocities: np.ndarray[float] = np.random.uniform(-1, 1, (gp.DIMENSIONS,))
         
@@ -22,14 +26,17 @@ class PSOAgent(ParticleAgent):
     def set_global_best(self, global_best: Solution):
         self.global_best = global_best
 
+    def adapt(self, exploration: int, exploatation: int):
+        self.W *= exploatation
+        self.C1 *= exploration * exploatation
+        self.C2 *= exploration
+    
     def execute(self) -> None:
-        for iteration in range(gp.PSO_ITERATIONS):
-            global_best_position = self.global_best.position
-        
+        for iteration in range(gp.PSO_ITERATIONS):        
             self.velocities = (
-                gp.W * self.velocities +
-                gp.C1 * np.random.rand(gp.DIMENSIONS) * (self.local_best.position - self.current.position) +
-                gp.C2 * np.random.rand(gp.DIMENSIONS) * (global_best_position - self.current.position)
+                self.W * self.velocities +
+                self.C1 * np.random.rand(gp.DIMENSIONS) * (self.local_best.position - self.current.position) +
+                self.C2 * np.random.rand(gp.DIMENSIONS) * (self.global_best.position - self.current.position)
             )
             self.current.position += self.velocities
             self.current.value = gp.OBJECTIVE_FUNCTION(self.current.position)

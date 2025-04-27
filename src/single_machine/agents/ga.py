@@ -32,10 +32,14 @@ class GAAgent(ParticleAgent):
         self.local_best = self.childs[0]
 
     def crossover(self) -> np.ndarray[float]:
-        return np.array([parent.position[dim] for dim, parent in zip(range(gp.DIMENSIONS), np.random.choice([self.parent1, self.parent2], size=gp.DIMENSIONS))])
+        return (
+            np.array([parent.position[dim] for dim, parent in zip(range(gp.DIMENSIONS), np.random.choice([self.parent1, self.parent2], size=gp.DIMENSIONS))])
+            if np.random.rand() < gp.CROSSOVER_PROB_GA else
+            min(self.parent1, self.parent2).position
+        )
 
     def mutate(self, offspring: np.ndarray[float]) -> np.ndarray[float]:
-        mutation_vector = np.random.uniform(-0.5, 0.5, (gp.DIMENSIONS,)) * (np.random.rand(gp.DIMENSIONS) < gp.MUTATION_RATE)
+        mutation_vector = np.random.uniform(-0.5, 0.5, (gp.DIMENSIONS,)) * (np.random.rand(gp.DIMENSIONS) < gp.MUTATION_RATE_GA)
         return offspring + mutation_vector
 
     def execute(self) -> None:

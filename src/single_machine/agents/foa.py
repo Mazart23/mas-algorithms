@@ -11,6 +11,8 @@ class FOAAgent(ParticleAgent):
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
         
+        self.W = gp.W_FOA
+        
         self.position = np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS)
         self.local_best = Solution(self.position, gp.OBJECTIVE_FUNCTION(self.position))
         self.global_best: Solution = Solution()
@@ -18,6 +20,9 @@ class FOAAgent(ParticleAgent):
     def random_fly(self):
         return self.position + np.random.normal(0, 1, gp.DIMENSIONS)
 
+    def adapt(self, exploration: int, exploatation: int):
+        self.W *= exploration * exploatation
+    
     def execute(self):
         for iteration in range(gp.FOA_ITERATIONS):
             new_pos = self.random_fly()
