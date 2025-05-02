@@ -24,11 +24,15 @@ class ACOAgent(ParticleAgent):
     def get_childs(self):
         return self.childs
 
+    def adapt(self, exploration: int, exploatation: int):
+        self.alpha *= exploatation 
+        self.beta *= exploration
+    
     def _generate_solution(self):
         position = np.array([
             np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE)
-            if np.random.rand() > self._pheromone_prob(i)
-            else self.local_best.position[i] if self.local_best.position is not None else np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE)
+            if np.random.rand() > self._pheromone_prob(i) or self.local_best.position is None
+            else self.local_best.position[i]
             for i in range(gp.DIMENSIONS)
         ])
         return Solution(position, gp.OBJECTIVE_FUNCTION(position))
