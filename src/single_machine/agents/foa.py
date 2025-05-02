@@ -8,6 +8,8 @@ from ...utils import global_parameters as gp
 
 
 class FOAAgent(ParticleAgent):
+    iterations = gp.FOA_ITERATIONS
+    
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
         
@@ -24,7 +26,7 @@ class FOAAgent(ParticleAgent):
         self.W *= exploration * exploatation
     
     def execute(self):
-        for iteration in range(gp.FOA_ITERATIONS):
+        for iteration in range(self.__class__.iterations):
             new_pos = self.random_fly()
             new_val = gp.OBJECTIVE_FUNCTION(new_pos)
             if new_val < self.local_best.value:
@@ -33,4 +35,4 @@ class FOAAgent(ParticleAgent):
                 if self.global_best_agent_type.value > self.local_best.value:
                     self.supervisor.update_global_best(self.local_best, self.__class__)
 
-        self.supervisor.collect_results(self.__class__, self.local_best.value)
+        self.supervisor.collect_results(self, self.local_best.value)

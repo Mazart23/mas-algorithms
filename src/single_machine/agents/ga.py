@@ -9,6 +9,8 @@ from ...utils import global_parameters as gp
 
 
 class GAAgent(ParticleAgent):
+    iterations = gp.GA_ITERATIONS
+    
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
         
@@ -17,9 +19,6 @@ class GAAgent(ParticleAgent):
         self.parent2: Solution | None = None
         self.offsprings_queue: queue.PriorityQueue[Solution] = queue.PriorityQueue()
         self.childs: list[Solution] = []
-
-    def set_global_best(self, global_best: Solution):
-        pass
 
     def get_childs(self):
         return self.childs
@@ -43,7 +42,7 @@ class GAAgent(ParticleAgent):
         return offspring + mutation_vector
 
     def execute(self) -> None:
-        for iteration in range(gp.GA_ITERATIONS):
+        for iteration in range(self.__class__.iterations):
             self.parent1, self.parent2 = self.supervisor.get_parents()
             offspring = self.crossover()
             offspring = self.mutate(offspring)
@@ -52,4 +51,4 @@ class GAAgent(ParticleAgent):
             self.offsprings_queue.put(solution)
             # self.supervisor.update_childs(solution)
         self.set_local_best()
-        self.supervisor.collect_results(self.__class__, self.local_best.value)
+        self.supervisor.collect_results(self, self.local_best.value)

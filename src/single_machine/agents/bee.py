@@ -9,6 +9,8 @@ from ...utils import global_parameters as gp
 
 
 class BeeAgent(ParticleAgent):
+    iterations = gp.BEE_ITERATIONS
+    
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
         
@@ -26,7 +28,7 @@ class BeeAgent(ParticleAgent):
         self.W *= exploatation * exploration
     
     def execute(self):
-        for iteration in range(gp.BEE_ITERATIONS):
+        for iteration in range(self.__class__.iterations):
             new_position = self.explore_neighbourhood(self.current.position)
             new_value = gp.OBJECTIVE_FUNCTION(new_position)
             if new_value < self.current.value:
@@ -36,4 +38,4 @@ class BeeAgent(ParticleAgent):
                     if self.global_best_agent_type.value > self.local_best.value:
                         self.supervisor.update_global_best(self.local_best, self.__class__)
 
-        self.supervisor.collect_results(self.__class__, self.local_best.value)
+        self.supervisor.collect_results(self, self.local_best.value)

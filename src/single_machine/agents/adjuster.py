@@ -55,8 +55,8 @@ class SoftmaxAdjuster:
     def step(self):
         performances = {
             agent_type: (
-                self.perfomance_avg_percentage * self.self.supervisor.avg_perfomance_history[-1][agent_type] + \
-                self.perfomance_best_percentage * self.self.supervisor.best_perfomance_history[-1][agent_type]
+                self.perfomance_avg_percentage * self.supervisor.avg_perfomance_history[-1][agent_type] + \
+                self.perfomance_best_percentage * self.supervisor.best_perfomance_history[-1][agent_type]
             )
             for agent_type in AgentType
         }

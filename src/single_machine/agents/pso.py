@@ -9,6 +9,8 @@ from ...utils import global_parameters as gp
 
 
 class PSOAgent(ParticleAgent):
+    iterations = gp.PSO_ITERATIONS
+    
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
         
@@ -32,7 +34,7 @@ class PSOAgent(ParticleAgent):
         self.C2 *= exploration
     
     def execute(self) -> None:
-        for iteration in range(gp.PSO_ITERATIONS):        
+        for iteration in range(self.__class__.iterations):        
             self.velocities = (
                 self.W * self.velocities +
                 self.C1 * np.random.rand(gp.DIMENSIONS) * (self.local_best.position - self.current.position) +
@@ -46,4 +48,4 @@ class PSOAgent(ParticleAgent):
                 if self.global_best_agent_type.value > self.local_best.value:
                     self.supervisor.update_global_best(self.local_best, self.__class__)
         
-        self.supervisor.collect_results(self.__class__, self.local_best.value)
+        self.supervisor.collect_results(self, self.local_best.value)

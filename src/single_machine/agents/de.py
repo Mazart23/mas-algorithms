@@ -7,6 +7,7 @@ from ...utils.custom_objects.data_classes import Solution
 from ...utils import global_parameters as gp
 
 class DEAgent(ParticleAgent):
+    iterations = gp.DE_ITERATIONS
 
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
@@ -27,7 +28,7 @@ class DEAgent(ParticleAgent):
         self.CR *= exploration * exploatation
     
     def execute(self):
-        for iteration in range(gp.DE_ITERATIONS):
+        for iteration in range(self.__class__.iterations):
             r1, r2, r3 = [np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS) for _ in range(3)]
             mutant = self.mutate(r1, r2, r3)
             trial = self.crossover(self.local_best.position, mutant)
@@ -37,4 +38,4 @@ class DEAgent(ParticleAgent):
                 if self.global_best_agent_type.value > self.local_best.value:
                     self.supervisor.update_global_best(self.local_best, self.__class__)
 
-        self.supervisor.collect_results(self.__class__, self.local_best.value)
+        self.supervisor.collect_results(self, self.local_best.value)

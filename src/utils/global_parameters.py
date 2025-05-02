@@ -1,10 +1,10 @@
 OBJECTIVE_FUNCTION = lambda: True
 
 # general parameters
-NUM_AGENTS = 100
+NUM_AGENTS = 200
 ITERATIONS = 10
 
-# adaptation parameters
+# adaptation - number of agents
 ADAPTATION_NUM_AGENT_TAU = 0.1 # Softmax temperature
 ADAPTATION_NUM_AGENT_ALPHA = 0.1 # Learning rate
 ADAPTATION_NUM_AGENT_GAMMA = 0.1 # Discount factor
@@ -13,10 +13,15 @@ ADAPTATION_NUM_AGENT_MAX_CHANGE = 10 # Max number of agents to change in one cyc
 ADAPTATION_NUM_AGENT_SPEED = 5 # Scale speed of changes
 ADAPTATION_NUM_AGENT_AVG_INFLUENCE = 0.2 # Percentage describing influence of mean solution for performance calculating
 ADAPTATION_NUM_AGENT_BEST_INFLUENCE = 0.8 # Percentage describing influence of best solution for performance calculating
+
+# adaptation - parameters
 ADAPTATION_PARAMETERS_EXPLORATION_PERCENTAGE = 0.2 # Percentage of all agents from specific type to increase exploration related parameters
 ADAPTATION_PARAMETERS_EXPLOATATION_PERCENTAGE = 0.2 # Percentage of all agents from specific type to increase exploatation related parameters
-ADAPTATION_PARAMETERS_EXPLORATION_RATE = 1.1 # Weight of increasing exploration related parameters
-ADAPTATION_PARAMETERS_EXPLOATATION_RATE = 1.1 # Weight of increasing exploration related parameters
+ADAPTATION_PARAMETERS_EXPLORATION_RATE_INC = 1.1 # Weight of increasing exploration related parameters
+ADAPTATION_PARAMETERS_EXPLORATION_RATE_DEC = 0.9 # Weight of decreasing exploration related parameters
+ADAPTATION_PARAMETERS_EXPLOATATION_RATE_INC = 1.1 # Weight of increasing exploration related parameters
+ADAPTATION_PARAMETERS_EXPLOATATION_RATE_DEC = 0.9 # Weight of decreasing exploration related parameters
+
 
 # PSO parameters
 PSO_ITERATIONS = 100
@@ -47,7 +52,9 @@ CR_DE = 0.7  # Crossover probability
 
 # ACO parameters
 ACO_ITERATIONS = 100
-W_ACO = 1  # Inertion
+ALPHA_ACO = 1.0  # Inertion
+BETA_ACO = 2.0  # Inertion
+EVAPORATION_RATE_ACO = 0.5
 
 # function parameters
 DIMENSIONS = 10
