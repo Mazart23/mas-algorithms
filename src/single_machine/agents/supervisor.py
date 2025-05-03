@@ -137,10 +137,10 @@ class Supervisor:
                 particle_agent.set_global_best_agent_type(self.global_best)
     
     def announce_global_best(self):
-        agent_type = AgentType.PSO
-        with self._lock_particle_agents[agent_type]:
-            for particle_agent in self.particle_agents[agent_type]:
-                particle_agent.set_global_best(self.global_best)
+        for agent_type in [AgentType.PSO, AgentType.FOA]:
+            with self._lock_particle_agents[agent_type]:
+                for particle_agent in self.particle_agents[agent_type]:
+                    particle_agent.set_global_best(self.global_best)
 
     def fetch_childs(self):
         for agent in self.particle_agents[AgentType.GA]:
