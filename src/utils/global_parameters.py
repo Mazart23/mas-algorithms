@@ -39,7 +39,9 @@ CHILDREN_PERCENTAGE_GA = 0.5
 
 # BEE parameters
 BEE_ITERATIONS = 100
-W_BEE = 1  # Weight of including random phi
+EMPLOYED_BEES_PERCENTAGE = 0.5
+W_BEE_EMPLOYEED = 0.1  # Weight of including random phi
+W_BEE_ONLOOKER = 0.2  # Weight of including random phi
 
 # FOA parameters
 FOA_ITERATIONS = 100

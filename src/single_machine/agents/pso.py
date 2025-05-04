@@ -40,7 +40,7 @@ class PSOAgent(ParticleAgent):
                 self.C1 * np.random.rand(gp.DIMENSIONS) * (self.local_best.position - self.current.position) +
                 self.C2 * np.random.rand(gp.DIMENSIONS) * (self.global_best.position - self.current.position)
             )
-            self.current.position += self.velocities
+            self.current.position = np.clip(self.current.position + self.velocities, gp.MIN_VALUE, gp.MAX_VALUE)
             self.current.value = gp.OBJECTIVE_FUNCTION(self.current.position)
             
             if self.current.value < self.local_best.value:

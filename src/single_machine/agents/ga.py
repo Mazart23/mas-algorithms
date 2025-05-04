@@ -49,6 +49,5 @@ class GAAgent(ParticleAgent):
             offspring_score = gp.OBJECTIVE_FUNCTION(offspring)
             solution = Solution(offspring, offspring_score)
             self.offsprings_queue.put(solution)
-            # self.supervisor.update_childs(solution)
         self.set_local_best()
         self.supervisor.collect_results(self, self.local_best.value)

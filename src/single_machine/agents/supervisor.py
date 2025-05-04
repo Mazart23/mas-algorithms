@@ -144,14 +144,15 @@ class Supervisor:
                     particle_agent.set_global_best(self.global_best)
 
     def fetch_childs(self):
-        for agent in self.particle_agents[AgentType.GA]:
-            agent_childs = agent.get_childs()
-            self.childs += agent_childs
+        for agent_type in [AgentType.GA, AgentType.BEE]:
+            for agent in self.particle_agents[agent_type]:
+                agent_childs = agent.get_childs()
+                self.childs += agent_childs
     
-    def get_parents(self):
+    def get_parents(self, size: int = 2):
         with self._lock_probabilities:
-            parent1, parent2 = np.random.choice(self.population, p=self.probabilities, replace=False, size=2)
-        return parent1, parent2
+            parents = np.random.choice(self.population, p=self.probabilities, replace=False, size=size)
+        return tuple(parents)
     
     def calculate_possible_pairs(self):
         population_length = len(self.population)
