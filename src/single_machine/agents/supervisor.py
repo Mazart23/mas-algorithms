@@ -76,6 +76,7 @@ class Supervisor:
         for agent_type in AgentType:
             agent_type_best_temp = copy.deepcopy(min([agent.local_best for agent in self.particle_agents[agent_type]], key=lambda s: s.value))
             self.agent_type_best[agent_type] = agent_type_best_temp
+            self.announce_global_best_agent_type(agent_type)
             if agent_type_best_temp.value < curr_global_best.value:
                 self.global_best = agent_type_best_temp
         self.announce_global_best()
@@ -134,7 +135,7 @@ class Supervisor:
     def announce_global_best_agent_type(self, agent_type: AgentType):
         with self._lock_particle_agents[agent_type]:
             for particle_agent in self.particle_agents[agent_type]:
-                particle_agent.set_global_best_agent_type(self.global_best)
+                particle_agent.set_global_best_agent_type(self.agent_type_best[agent_type])
     
     def announce_global_best(self):
         for agent_type in [AgentType.PSO, AgentType.FOA]:

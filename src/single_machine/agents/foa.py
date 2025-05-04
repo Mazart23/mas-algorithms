@@ -22,7 +22,7 @@ class FOAAgent(ParticleAgent):
         self.global_best = global_best
     
     def random_fly(self):
-        return self.global_best + self.W * np.random.normal(0, 1, gp.DIMENSIONS)
+        return self.global_best.position + self.W * np.random.normal(0, 1, gp.DIMENSIONS)
 
     def adapt(self, exploration: int, exploatation: int):
         self.W *= exploration * exploatation

@@ -43,7 +43,7 @@ W_BEE = 1  # Weight of including random phi
 
 # FOA parameters
 FOA_ITERATIONS = 100
-W_FOA = 1  # Weight of velocity of changes
+W_FOA = 0.1  # Weight of velocity of changes
 
 # DE parameters
 DE_ITERATIONS = 100
