@@ -12,7 +12,7 @@ def run():
     adapt_num_agents = True
     adapt_parameters = True
     adapt_itearations = True
-    visualize_data = False
+    visualize_data = True
     print(f'Is GIL enabled: {sys._is_gil_enabled()}')
     print(f'Objective function: {function_name}')
     print(f'Is adaptation of number of agents enabled: {adapt_num_agents}')

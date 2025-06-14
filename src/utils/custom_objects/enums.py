@@ -1,11 +1,11 @@
 from enum import Enum
 
-from ...single_machine.agents.pso import PSOAgent
-from ...single_machine.agents.ga import GAAgent
-from ...single_machine.agents.abc import ABCAgent
-from ...single_machine.agents.foa import FOAAgent
-from ...single_machine.agents.de import DEAgent
-from ...single_machine.agents.aco import ACOAgent
+from ...models.agents.pso import PSOAgent
+from ...models.agents.ga import GAAgent
+from ...models.agents.abc import ABCAgent
+from ...models.agents.foa import FOAAgent
+from ...models.agents.de import DEAgent
+from ...models.agents.aco import ACOAgent
 
 class AgentType(Enum):
     PSO = PSOAgent

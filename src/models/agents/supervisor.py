@@ -5,12 +5,13 @@ import copy
 import heapq
 
 import numpy as np
-# from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt
 
 from ...utils.custom_objects.data_classes import Solution
 from ...utils.custom_objects.enums import AgentType
 from ...utils import global_parameters as gp
 from .adjuster import SoftmaxAdjuster
+
 
 class Supervisor:
     def __init__(self, 
@@ -248,12 +249,73 @@ class Supervisor:
             time.sleep(1)
 
     def show_results(self, time_start: float, time_end: float) -> None:
-        print(f'\nTime execution: {time_end - time_start}\n')
+        print(f'\nExecution time: {time_end - time_start:.2f} seconds\n')
+        
         for agent_type in AgentType:
             if agent_type == AgentType.GA:
                 best = min(self.population)
             else:
                 best = self.agent_type_best[agent_type]
-            print(f'{agent_type.name}: \n\tvalue: {best.value:.4f} \n\tposition: {best.position}\n')
-        if self.visualize_data:
-            pass
+            print(f'{agent_type.name}: \n\tBest value: {best.value:.4f} \n\tBest position: {best.position}\n')
+        
+        if not self.visualize_data:
+            return
+
+        iterations = list(range(len(self.avg_perfomance_history)))
+
+        plt.figure(figsize=(12, 6))
+        for agent_type in AgentType:
+            plt.plot(
+                iterations,
+                [hist[agent_type] for hist in self.avg_perfomance_history],
+                label=agent_type.name
+            )
+        plt.title("Average Performance per Agent Type")
+        plt.xlabel("Iteration")
+        plt.ylabel("Average Value")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+
+        plt.figure(figsize=(12, 6))
+        for agent_type in AgentType:
+            plt.plot(
+                iterations,
+                [hist[agent_type] for hist in self.best_perfomance_history],
+                label=agent_type.name
+            )
+        plt.title("Best Performance per Agent Type")
+        plt.xlabel("Iteration")
+        plt.ylabel("Best Value")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+
+        plt.figure(figsize=(12, 6))
+        for agent_type in AgentType:
+            plt.plot(
+                iterations,
+                [hist[agent_type] for hist in self.iteration_times_history],
+                label=agent_type.name
+            )
+        plt.title("Iteration Times per Agent Type")
+        plt.xlabel("Iteration")
+        plt.ylabel("Time (seconds)")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+
+        plt.figure(figsize=(12, 6))
+        for agent_type in AgentType:
+            plt.plot(
+                iterations,
+                [hist[agent_type] for hist in self.nums_history],
+                label=agent_type.name
+            )
+        plt.title("Number of Agents per Agent Type Over Time")
+        plt.xlabel("Iteration")
+        plt.ylabel("Number of Agents")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
