@@ -9,14 +9,14 @@ from ...utils.custom_objects.data_classes import Solution
 from ...utils import global_parameters as gp
 
 
-class BeeAgent(ParticleAgent):
-    iterations = gp.BEE_ITERATIONS
+class ABCAgent(ParticleAgent):
+    iterations = gp.ABC_ITERATIONS
     
     def __init__(self, supervisor: 'Supervisor'):
         super().__init__(supervisor)
         
-        self.is_employeed: bool = gp.EMPLOYED_BEES_PERCENTAGE > np.random.uniform(0, 1)
-        self.W = gp.W_BEE_EMPLOYEED if self.is_employeed else gp.W_BEE_ONLOOKER
+        self.is_employeed: bool = gp.EMPLOYED_ABC_PERCENTAGE > np.random.uniform(0, 1)
+        self.W = gp.W_ABC_EMPLOYEED if self.is_employeed else gp.W_ABC_ONLOOKER
         
         self.current: Solution = Solution(pos := np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,)), gp.OBJECTIVE_FUNCTION(pos))
         self.local_best: Solution = copy.deepcopy(self.current)

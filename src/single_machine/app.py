@@ -5,7 +5,6 @@ import time
 from .agents.supervisor import Supervisor
 from ..utils.functions import OBJECTIVE_FUNCTIONS_DICT
 from ..utils import global_parameters as gp
-from ..utils.custom_objects.enums import AgentType
 
 
 def run():
@@ -46,10 +45,5 @@ def run():
         supervisor.adapt()
     
     time_end = time.perf_counter()
-    print(f'\nTime execution: {time_end - time_start}')
-    for agent_type in AgentType:
-        if agent_type == AgentType.GA:
-            best = min(supervisor.population)
-        else:
-            best = supervisor.agent_type_best[agent_type]
-        print(f'Best global solution {agent_type.name}: {best.value:.4f} at {best.position}')
+
+    supervisor.show_results(time_start, time_end)

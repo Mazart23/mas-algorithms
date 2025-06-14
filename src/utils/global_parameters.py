@@ -1,7 +1,7 @@
 OBJECTIVE_FUNCTION = lambda: True
 
 # general parameters
-NUM_AGENTS = 200
+NUM_AGENTS = 60
 ITERATIONS = 10
 
 # adaptation - number of agents
@@ -37,11 +37,11 @@ MUTATION_RATE_GA = 0.1
 PARENTS_PERCENTAGE_GA = 0.2
 CHILDREN_PERCENTAGE_GA = 0.5
 
-# BEE parameters
-BEE_ITERATIONS = 100
-EMPLOYED_BEES_PERCENTAGE = 0.5
-W_BEE_EMPLOYEED = 0.1  # Weight of including random phi
-W_BEE_ONLOOKER = 0.2  # Weight of including random phi
+# ABC parameters
+ABC_ITERATIONS = 100
+EMPLOYED_ABC_PERCENTAGE = 0.5
+W_ABC_EMPLOYEED = 0.1  # Weight of including random phi
+W_ABC_ONLOOKER = 0.2  # Weight of including random phi
 
 # FOA parameters
 FOA_ITERATIONS = 100

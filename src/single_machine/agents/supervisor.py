@@ -5,6 +5,7 @@ import copy
 import heapq
 
 import numpy as np
+# from matplotlib import pyplot as plt
 
 from ...utils.custom_objects.data_classes import Solution
 from ...utils.custom_objects.enums import AgentType
@@ -17,7 +18,7 @@ class Supervisor:
         adapt_parameters: bool = False, 
         adapt_iterations: bool = False, 
         visualize_data: bool = False
-    ):
+    ) -> None:
         self.adapt_num_agents: bool = adapt_num_agents
         self.adapt_parameters: bool = adapt_parameters
         self.adapt_iterations: bool = adapt_iterations
@@ -71,7 +72,7 @@ class Supervisor:
                 
         self.num_agents_adjuster: SoftmaxAdjuster = SoftmaxAdjuster(self)
     
-    def initialize_global_best(self):
+    def initialize_global_best(self) -> None:
         curr_global_best: Solution = Solution()
         for agent_type in AgentType:
             agent_type_best_temp = copy.deepcopy(min([agent.local_best for agent in self.particle_agents[agent_type]], key=lambda s: s.value))
@@ -81,14 +82,14 @@ class Supervisor:
                 self.global_best = agent_type_best_temp
         self.announce_global_best()
     
-    def initialize_population(self):
+    def initialize_population(self) -> None:
         self.set_population(
             sorted([Solution(pos := np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,)), gp.OBJECTIVE_FUNCTION(pos)) for _ in range(gp.GA_POPULATION)])
         )
         self.calculate_possible_pairs()
         self.calculate_probabilities()
 
-    def initialize_agents(self):
+    def initialize_agents(self) -> None:
         for agent_type in AgentType:
             new_agent_obj_lst = [agent_type.value(self) for _ in range(self.num_agents[agent_type])]
             with self._lock_particle_agents[agent_type]:
@@ -102,7 +103,7 @@ class Supervisor:
         delta_pheromones = 1.0 / (1.0 + self.global_best.value)
         self.pheromones = (1 - gp.EVAPORATION_RATE_ACO) * self.pheromones + delta_pheromones
 
-    def add_agents(self, agent_type: AgentType, num_to_add: int):
+    def add_agents(self, agent_type: AgentType, num_to_add: int) -> None:
         agent_obj_lst = [agent_type.value(self) for _ in range(num_to_add)]
         with self._lock_particle_agents[agent_type]:
             self.particle_agents[agent_type] += agent_obj_lst
@@ -110,7 +111,7 @@ class Supervisor:
             agent.start()
             agent.set_global_best(self.global_best)
     
-    def remove_agents(self, agent_type: AgentType, num_to_remove: int):
+    def remove_agents(self, agent_type: AgentType, num_to_remove: int) -> None:
         with self._lock_particle_agents[agent_type]:
             particle_agents_obj = self.particle_agents[agent_type]
             for _ in range(num_to_remove):
@@ -118,7 +119,7 @@ class Supervisor:
                 particle_agents_obj.remove(worst_agent)
                 worst_agent.kill()
     
-    def update_global_best(self, new_best_candidate: Solution, agent_class: type):
+    def update_global_best(self, new_best_candidate: Solution, agent_class: type) -> None:
         agent_type = AgentType(agent_class)
         if new_best_candidate.value < self.agent_type_best[agent_type].value:
             copy_solution = copy.deepcopy(new_best_candidate)
@@ -130,35 +131,34 @@ class Supervisor:
                 with self._lock_global_best:
                     self.global_best = copy_solution
                 self.announce_global_best()
-                print(f'[Supervisor] New global best: {self.global_best.value:.4f} at {self.global_best.position}')
     
-    def announce_global_best_agent_type(self, agent_type: AgentType):
+    def announce_global_best_agent_type(self, agent_type: AgentType) -> None:
         with self._lock_particle_agents[agent_type]:
             for particle_agent in self.particle_agents[agent_type]:
                 particle_agent.set_global_best_agent_type(self.agent_type_best[agent_type])
     
-    def announce_global_best(self):
+    def announce_global_best(self) -> None:
         for agent_type in [AgentType.PSO, AgentType.FOA]:
             with self._lock_particle_agents[agent_type]:
                 for particle_agent in self.particle_agents[agent_type]:
                     particle_agent.set_global_best(self.global_best)
 
-    def fetch_childs(self):
-        for agent_type in [AgentType.GA, AgentType.BEE]:
+    def fetch_childs(self) -> None:
+        for agent_type in [AgentType.GA, AgentType.ABC]:
             for agent in self.particle_agents[agent_type]:
                 agent_childs = agent.get_childs()
                 self.childs += agent_childs
     
-    def get_parents(self, size: int = 2):
+    def get_parents(self, size: int = 2) -> tuple[np.ndarray]:
         with self._lock_probabilities:
             parents = np.random.choice(self.population, p=self.probabilities, replace=False, size=size)
         return tuple(parents)
     
-    def calculate_possible_pairs(self):
+    def calculate_possible_pairs(self) -> None:
         population_length = len(self.population)
         self.possible_pairs = (population_length * (population_length + 1)) / 2
 
-    def calculate_probabilities(self):
+    def calculate_probabilities(self) -> None:
         self.probabilities = [i / self.possible_pairs for i in range(1, len(self.population) + 1)]
 
     def select_population(self) -> None:
@@ -175,17 +175,18 @@ class Supervisor:
         self.set_population(sorted(best_ones + list(np.random.choice(others, size=n_random, replace=False))))
         self.childs = []
     
-    def collect_results(self, agent_type_obj: 'ParticleAgent', best_value: float):
+    def collect_results(self, agent_type_obj: 'ParticleAgent', best_value: float) -> None:
         with self._lock_performance:
             self.performance[AgentType(agent_type_obj.__class__)].append((agent_type_obj, best_value))
     
-    def save_nums(self):
+    def save_nums(self) -> None:
+        print(f'''Number of agents:{''.join((f'\n\t{agent_type.name}: {self.num_agents[agent_type]}' for agent_type in AgentType))}\n''')
+        print(f'''Inner iterations:{''.join((f'\n\t{agent_type.name}: {agent_type.value.iterations}' for agent_type in AgentType))}\n''')
         if not self.visualize_data:
             return
-        print(f'''Number of agents:{''.join((f'\n\t{agent_type.name}: {self.num_agents[agent_type]}' for agent_type in AgentType))}\n''')
         self.nums_history.append(copy.copy(self.num_agents))
     
-    def save_performance(self):
+    def save_performance(self) -> None:
         self.avg_perfomance_history.append({
             agent_type: np.mean([
                 perf for _, perf in self.performance[agent_type][-self.num_agents[agent_type]:]
@@ -197,7 +198,7 @@ class Supervisor:
         )
         self.iteration_times_history.append(copy.copy(self.iteration_times))
     
-    def adapt(self):
+    def adapt(self) -> None:
         if self.adapt_num_agents:
             self.num_agents_adjuster.step()
         if self.adapt_parameters:
@@ -222,18 +223,18 @@ class Supervisor:
             for agent_type, iteration_time in iteration_times.items():
                 agent_type.value.iterations = int(agent_type.value.iterations * mean_time / iteration_time + 1)
     
-    def start_agents(self):
+    def start_agents(self) -> None:
         for agent_type in AgentType:
             self.is_running[agent_type] = True
             for agent in self.particle_agents[agent_type]:
                 agent.go()
     
-    def run_agents(self):
+    def run_agents(self) -> None:
         for agent_type in AgentType:
             for agent in self.particle_agents[agent_type]:
                 agent.start()
     
-    def wait_for_agents(self):
+    def wait_for_agents(self) -> None:
         start_time = time.perf_counter()
         while True:
             for agent_type in AgentType:
@@ -245,3 +246,14 @@ class Supervisor:
                 if not any(self.is_running.values()):
                     return
             time.sleep(1)
+
+    def show_results(self, time_start: float, time_end: float) -> None:
+        print(f'\nTime execution: {time_end - time_start}\n')
+        for agent_type in AgentType:
+            if agent_type == AgentType.GA:
+                best = min(self.population)
+            else:
+                best = self.agent_type_best[agent_type]
+            print(f'{agent_type.name}: \n\tvalue: {best.value:.4f} \n\tposition: {best.position}\n')
+        if self.visualize_data:
+            pass
