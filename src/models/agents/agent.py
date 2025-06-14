@@ -44,6 +44,7 @@ class ParticleAgent(threading.Thread):
             self.event.wait()
             self.execute()
             self.event.clear()
+            self.supervisor.agent_stopped(self.__class__)
     
     def go(self):
         self.event.set()

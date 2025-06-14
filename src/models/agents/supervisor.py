@@ -3,6 +3,7 @@ import time
 import threading
 import copy
 import heapq
+import queue
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -33,10 +34,12 @@ class Supervisor:
         self.particle_agents: dict[AgentType, list['ParticleAgent']] = {
             agent: [] for agent in AgentType
         }
-        self.is_running: dict[AgentType, bool] = {
-            agent: False for agent in AgentType
+
+        self.q_agents_stopped: queue.Queue = queue.Queue()
+        self.stopped_counter: dict[AgentType, int] = {
+            agent_type: 0 for agent_type in AgentType
         }
-        
+
         self.global_best: Solution = Solution()
         self.agent_type_best: dict[AgentType, Solution] = {
             agent: Solution() for agent in AgentType
@@ -226,7 +229,6 @@ class Supervisor:
     
     def start_agents(self) -> None:
         for agent_type in AgentType:
-            self.is_running[agent_type] = True
             for agent in self.particle_agents[agent_type]:
                 agent.go()
     
@@ -235,18 +237,21 @@ class Supervisor:
             for agent in self.particle_agents[agent_type]:
                 agent.start()
     
+    def agent_stopped(self, agent_class: type):
+        stop_time = time.time()
+        self.q_agents_stopped.put((AgentType(agent_class), stop_time))
+
     def wait_for_agents(self) -> None:
         start_time = time.perf_counter()
-        while True:
-            for agent_type in AgentType:
-                if self.is_running[agent_type] and not any(agent.event.is_set() for agent in self.particle_agents[agent_type]):
-                    end_time = time.perf_counter()
-                    self.iteration_times[agent_type] = end_time - start_time
-                    self.is_running[agent_type] = False
-                    print(f'####### {agent_type.name} STOPPED')
-                if not any(self.is_running.values()):
-                    return
-            time.sleep(1)
+        for agent_type in AgentType:
+            self.stopped_counter[agent_type] = 0
+        
+        for _ in range(sum(self.num_agents.values())):
+            agent_type, end_time = self.q_agents_stopped.get()
+            self.stopped_counter[agent_type] += 1
+            if self.stopped_counter[agent_type] == self.num_agents[agent_type]:
+                self.iteration_times[agent_type] = end_time - start_time
+                print(f'{agent_type} STOPPED')
 
     def show_results(self, time_start: float, time_end: float) -> None:
         print(f'\nExecution time: {time_end - time_start:.2f} seconds\n')
