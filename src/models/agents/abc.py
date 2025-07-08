@@ -16,7 +16,7 @@ class ABCAgent(ParticleAgent):
         super().__init__(supervisor)
         
         self.is_employeed: bool = gp.EMPLOYED_ABC_PERCENTAGE > np.random.uniform(0, 1)
-        self.W = gp.W_ABC_EMPLOYEED if self.is_employeed else gp.W_ABC_ONLOOKER
+        self.W = gp.W_ABC_EMPLOYEED if self.is_employeed else gp.W_ABC_SCOUT
         
         self.current: Solution = Solution(pos := np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,)), gp.OBJECTIVE_FUNCTION(pos))
         self.local_best: Solution = copy.deepcopy(self.current)

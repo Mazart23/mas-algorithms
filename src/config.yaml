@@ -45,8 +45,8 @@ CHILDREN_PERCENTAGE_GA: 0.5
 # ABC parameters
 ABC_ITERATIONS: 100
 EMPLOYED_ABC_PERCENTAGE: 0.5
-W_ABC_EMPLOYEED: 0.1  # Weight of including random phi
-W_ABC_ONLOOKER: 0.2  # Weight of including random phi
+W_ABC_EMPLOYEED: 0.1  # Weight of including random phi for employed bees
+W_ABC_SCOUT: 0.2  # Weight of including random phi for scout bees
 
 # FOA parameters
 FOA_ITERATIONS: 100
