@@ -33,13 +33,14 @@ def run():
     
     for i in range(gp.ITERATIONS):
         print(f'\n\n##############\nIteration: {i}')
-        supervisor.save_nums()
+        supervisor.save_nums_and_clear_performance()
 
         supervisor.start_agents()
         supervisor.wait_for_agents()
 
         supervisor.select_population()
         supervisor.update_pheromones()
+        supervisor.update_abc_border_performance()
         supervisor.save_performance()
         
         supervisor.adapt()

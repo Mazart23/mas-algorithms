@@ -52,6 +52,8 @@ class Supervisor:
         
         self.pheromones: np.ndarray = np.ones((gp.DIMENSIONS,))
         self.heuristic: np.ndarray = np.ones((gp.DIMENSIONS,))
+
+        self.abc_border_performance: float = 0.0
         
         self._lock_population = threading.Lock()
         self._lock_probabilities = threading.Lock()
@@ -107,6 +109,13 @@ class Supervisor:
         delta_pheromones = 1.0 / (1.0 + self.global_best.value)
         self.pheromones = (1 - gp.EVAPORATION_RATE_ACO) * self.pheromones + delta_pheromones
 
+    def update_abc_border_performance(self) -> None:
+        employed_agents_num = int(self.num_agents[AgentType.ABC] * gp.EMPLOYED_ABC_PERCENTAGE)
+        self.abc_border_performance = [
+            performance 
+            for _, performance in self.performance[AgentType.ABC]
+        ][employed_agents_num]
+    
     def add_agents(self, agent_type: AgentType, num_to_add: int) -> None:
         agent_obj_lst = [agent_type.value(self) for _ in range(num_to_add)]
         with self._lock_particle_agents[agent_type]:
@@ -148,7 +157,7 @@ class Supervisor:
                     particle_agent.set_global_best(self.global_best)
 
     def fetch_childs(self) -> None:
-        for agent_type in [AgentType.GA, AgentType.ABC]:
+        for agent_type in [AgentType.GA, AgentType.ABC, AgentType.DE]:
             for agent in self.particle_agents[agent_type]:
                 agent_childs = agent.get_childs()
                 self.childs += agent_childs
@@ -178,14 +187,17 @@ class Supervisor:
 
         self.set_population(sorted(best_ones + list(np.random.choice(others, size=n_random, replace=False))))
         self.childs = []
-    
+
     def collect_results(self, agent_type_obj: 'ParticleAgent', best_value: float) -> None:
         with self._lock_performance:
             self.performance[AgentType(agent_type_obj.__class__)].append((agent_type_obj, best_value))
     
-    def save_nums(self) -> None:
+    def save_nums_and_clear_performance(self) -> None:
         print(f'''Number of agents:{''.join((f'\n\t{agent_type.name}: {self.num_agents[agent_type]}' for agent_type in AgentType))}\n''')
         print(f'''Inner iterations:{''.join((f'\n\t{agent_type.name}: {agent_type.value.iterations}' for agent_type in AgentType))}\n''')
+        self.performance = {
+            agent: [] for agent in AgentType
+        }
         if not self.visualize_data:
             return
         self.nums_history.append(copy.copy(self.num_agents))
@@ -211,15 +223,15 @@ class Supervisor:
                 length = len(performance_lst_sorted)
                 
                 exploration_count = max(1, int(gp.ADAPTATION_PARAMETERS_EXPLORATION_PERCENTAGE * length))
-                exploitation_count = max(1, int(gp.ADAPTATION_PARAMETERS_EXPLOATATION_PERCENTAGE * length))
+                exploitation_count = max(1, int(gp.ADAPTATION_PARAMETERS_EXPLOITATION_PERCENTAGE * length))
                 
                 worst_agents = heapq.nlargest(exploration_count, performance_lst, key=lambda tup: tup[1])
                 for agent_obj, _ in worst_agents:
-                    agent_obj.adapt(gp.ADAPTATION_PARAMETERS_EXPLORATION_RATE_INC, gp.ADAPTATION_PARAMETERS_EXPLOATATION_RATE_DEC)
+                    agent_obj.adapt(gp.ADAPTATION_PARAMETERS_EXPLORATION_RATE_INC, gp.ADAPTATION_PARAMETERS_EXPLOITATION_RATE_DEC)
                 
                 best_agents = heapq.nsmallest(exploitation_count, performance_lst, key=lambda tup: tup[1])
                 for agent_obj, _ in best_agents:
-                    agent_obj.adapt(gp.ADAPTATION_PARAMETERS_EXPLORATION_RATE_DEC, gp.ADAPTATION_PARAMETERS_EXPLOATATION_RATE_INC)
+                    agent_obj.adapt(gp.ADAPTATION_PARAMETERS_EXPLORATION_RATE_DEC, gp.ADAPTATION_PARAMETERS_EXPLOITATION_RATE_INC)
                 
         if self.adapt_iterations:
             iteration_times = self.iteration_times_history[-1]

@@ -17,20 +17,23 @@ class DEAgent(ParticleAgent):
         
         self.local_best = Solution(pos := np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS), gp.OBJECTIVE_FUNCTION(pos))
 
-    def mutate(self, r1, r2, r3):
+    def get_childs(self):
+        return [self.local_best]
+
+    def mutate(self, r1, r2, r3) -> np.ndarray:
         return np.clip(r1 + self.F * (r2 - r3), gp.MIN_VALUE, gp.MAX_VALUE)
 
-    def crossover(self, target, mutant):
+    def crossover(self, target, mutant) -> np.ndarray:
         return np.array([mutant[i] if np.random.rand() < self.CR else target[i] for i in range(gp.DIMENSIONS)])
 
-    def adapt(self, exploration: int, exploatation: int):
-        self.F *= exploration * exploatation
-        self.CR *= exploration * exploatation
+    def adapt(self, exploration: int, exploitation: int) -> None:
+        self.F *= exploration * exploitation
+        self.CR *= exploration * exploitation
     
     def execute(self):
         for iteration in range(self.__class__.iterations):
-            r1, r2, r3 = [np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS) for _ in range(3)]
-            mutant = self.mutate(r1, r2, r3)
+            r1, r2, r3 = self.supervisor.get_parents(size=3)
+            mutant = self.mutate(r1.position, r2.position, r3.position)
             trial = self.crossover(self.local_best.position, mutant)
             trial_value = gp.OBJECTIVE_FUNCTION(trial)
             if trial_value < self.local_best.value:

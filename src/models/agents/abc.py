@@ -22,8 +22,7 @@ class ABCAgent(ParticleAgent):
         self.local_best: Solution = copy.deepcopy(self.current)
         self.childs: list[Solution] = []
         
-        if not self.is_employeed:
-            self.offsprings_queue: queue.PriorityQueue[Solution] = queue.PriorityQueue()
+        self.offsprings_queue: queue.PriorityQueue[Solution] = queue.PriorityQueue()
 
     def get_childs(self):
         return self.childs
@@ -35,19 +34,27 @@ class ABCAgent(ParticleAgent):
         self.childs = list(self.offsprings_queue.queue)
         self.local_best = self.childs[0]
     
-    def explore_neighbourhood(self, position):
+    def explore_neighbourhood(self, position) -> np.ndarray:
         phi = np.random.uniform(-1, 1, gp.DIMENSIONS)
-        partner = np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS)
-        return np.clip(position + self.W * phi * (position - partner), gp.MIN_VALUE, gp.MAX_VALUE)
+        partner_position = self.supervisor.get_parents(size=1).position
+        return np.clip(position + self.W * phi * (position - partner_position), gp.MIN_VALUE, gp.MAX_VALUE)
 
-    def adapt(self, exploration: int, exploatation: int):
-        self.W *= exploatation
+    def determine_type(self) -> None:
+        if self.supervisor.abc_border_performance:
+            self.is_employeed = self.supervisor.abc_border_performance > self.local_best.value
+        self.W = gp.W_ABC_EMPLOYEED if self.is_employeed else gp.W_ABC_SCOUT
+
+    def adapt(self, exploration: int, exploitation: int):
+        self.W *= exploitation
     
     def execute(self):
+        self.determine_type()
         if self.is_employeed:
             for iteration in range(self.__class__.iterations):
                 new_position = self.explore_neighbourhood(self.current.position)
                 new_value = gp.OBJECTIVE_FUNCTION(new_position)
+                offspring = Solution(new_position, new_value)
+                self.offsprings_queue.put(offspring)
                 if new_value < self.current.value:
                     self.current = Solution(new_position, new_value)
                     if new_value < self.local_best.value:

@@ -36,7 +36,7 @@ class ParticleAgent(threading.Thread):
     def set_global_best_agent_type(self, global_best: Solution):
         self.global_best_agent_type = global_best
 
-    def adapt(self, exploration: int, exploatation: int):
+    def adapt(self, exploration: int, exploitation: int):
         pass
 
     def run(self):

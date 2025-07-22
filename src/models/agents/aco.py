@@ -18,8 +18,8 @@ class ACOAgent(ParticleAgent):
 
         self.local_best = Solution()
 
-    def adapt(self, exploration: int, exploatation: int):
-        self.alpha *= exploatation 
+    def adapt(self, exploration: int, exploitation: int):
+        self.alpha *= exploitation 
         self.beta *= exploration
     
     def generate_solution(self):

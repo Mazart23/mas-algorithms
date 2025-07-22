@@ -28,9 +28,9 @@ class PSOAgent(ParticleAgent):
     def set_global_best(self, global_best: Solution):
         self.global_best = global_best
 
-    def adapt(self, exploration: int, exploatation: int):
-        self.W *= exploatation
-        self.C1 *= exploration * exploatation
+    def adapt(self, exploration: int, exploitation: int):
+        self.W *= exploitation
+        self.C1 *= exploration * exploatition
         self.C2 *= exploration
     
     def execute(self) -> None:
