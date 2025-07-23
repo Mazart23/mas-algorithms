@@ -36,8 +36,8 @@ class ABCAgent(ParticleAgent):
     
     def explore_neighbourhood(self, position) -> np.ndarray:
         phi = np.random.uniform(-1, 1, gp.DIMENSIONS)
-        partner_position = self.supervisor.get_parents(size=1).position
-        return np.clip(position + self.W * phi * (position - partner_position), gp.MIN_VALUE, gp.MAX_VALUE)
+        partner, = self.supervisor.get_parents(size=1)
+        return np.clip(position + self.W * phi * (position - partner.position), gp.MIN_VALUE, gp.MAX_VALUE)
 
     def determine_type(self) -> None:
         if self.supervisor.abc_border_performance:

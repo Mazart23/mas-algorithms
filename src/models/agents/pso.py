@@ -30,7 +30,7 @@ class PSOAgent(ParticleAgent):
 
     def adapt(self, exploration: int, exploitation: int):
         self.W *= exploitation
-        self.C1 *= exploration * exploatition
+        self.C1 *= exploration * exploitation
         self.C2 *= exploration
     
     def execute(self) -> None:
