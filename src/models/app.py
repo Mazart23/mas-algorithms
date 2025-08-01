@@ -31,7 +31,7 @@ def run():
 
     supervisor.run_agents()
     
-    for i in range(gp.ITERATIONS):
+    for i in range(1, gp.ITERATIONS + 1):
         print(f'\n\n##############\nIteration: {i}')
         supervisor.save_nums_and_clear_performance()
 

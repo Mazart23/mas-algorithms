@@ -280,13 +280,19 @@ class Supervisor:
 
         iterations = list(range(len(self.avg_perfomance_history)))
 
+        def setup_x_axis():
+            plt.xlim(min(iterations), max(iterations))
+            plt.xticks(iterations)
+
         plt.figure(figsize=(12, 6))
         for agent_type in AgentType:
-            plt.plot(
+            plt.scatter(
                 iterations,
                 [hist[agent_type] for hist in self.avg_perfomance_history],
-                label=agent_type.name
+                label=agent_type.name,
+                s=10
             )
+        setup_x_axis()
         plt.title("Average Performance per Agent Type")
         plt.xlabel("Iteration")
         plt.ylabel("Average Value")
@@ -296,11 +302,13 @@ class Supervisor:
 
         plt.figure(figsize=(12, 6))
         for agent_type in AgentType:
-            plt.plot(
+            plt.scatter(
                 iterations,
                 [hist[agent_type] for hist in self.best_perfomance_history],
-                label=agent_type.name
+                label=agent_type.name,
+                s=10
             )
+        setup_x_axis()
         plt.title("Best Performance per Agent Type")
         plt.xlabel("Iteration")
         plt.ylabel("Best Value")
@@ -310,11 +318,13 @@ class Supervisor:
 
         plt.figure(figsize=(12, 6))
         for agent_type in AgentType:
-            plt.plot(
+            plt.scatter(
                 iterations,
                 [hist[agent_type] for hist in self.iteration_times_history],
-                label=agent_type.name
+                label=agent_type.name,
+                s=10
             )
+        setup_x_axis()
         plt.title("Iteration Times per Agent Type")
         plt.xlabel("Iteration")
         plt.ylabel("Time (seconds)")
@@ -324,15 +334,18 @@ class Supervisor:
 
         plt.figure(figsize=(12, 6))
         for agent_type in AgentType:
-            plt.plot(
+            plt.scatter(
                 iterations,
                 [hist[agent_type] for hist in self.nums_history],
-                label=agent_type.name
+                label=agent_type.name,
+                s=10
             )
+        setup_x_axis()
         plt.title("Number of Agents per Agent Type Over Time")
         plt.xlabel("Iteration")
         plt.ylabel("Number of Agents")
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
+
         plt.show()
