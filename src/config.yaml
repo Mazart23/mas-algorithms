@@ -6,8 +6,8 @@ IS_ADAPT_ITERATIONS: 1
 IS_VISUALIZE_DATA: 1
 
 # general parameters
-NUM_AGENTS: 24
-ITERATIONS: 2
+NUM_AGENTS: 200
+ITERATIONS: 10
 
 # adaptation - number of agents
 ADAPTATION_NUM_AGENT_TAU: 0.1 # Softmax temperature
@@ -24,8 +24,8 @@ ADAPTATION_PARAMETERS_EXPLORATION_PERCENTAGE: 0.2 # Percentage of all agents fro
 ADAPTATION_PARAMETERS_EXPLOITATION_PERCENTAGE: 0.2 # Percentage of all agents from specific type to increase exploitation related parameters
 ADAPTATION_PARAMETERS_EXPLORATION_RATE_INC: 1.1 # Weight of increasing exploration related parameters
 ADAPTATION_PARAMETERS_EXPLORATION_RATE_DEC: 0.9 # Weight of decreasing exploration related parameters
-ADAPTATION_PARAMETERS_EXPLOITATION_RATE_INC: 1.1 # Weight of increasing exploration related parameters
-ADAPTATION_PARAMETERS_EXPLOITATION_RATE_DEC: 0.9 # Weight of decreasing exploration related parameters
+ADAPTATION_PARAMETERS_EXPLOITATION_RATE_INC: 2 # Weight of increasing exploitation related parameters
+ADAPTATION_PARAMETERS_EXPLOITATION_RATE_DEC: 0.9 # Weight of decreasing exploitation related parameters
 
 
 # PSO parameters
@@ -64,6 +64,6 @@ BETA_ACO: 2.0  # Inertion
 EVAPORATION_RATE_ACO: 0.5
 
 # function parameters
-DIMENSIONS: 10
+DIMENSIONS: 5
 MIN_VALUE: -5.12
 MAX_VALUE: 5.12

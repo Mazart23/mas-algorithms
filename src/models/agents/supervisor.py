@@ -1,5 +1,6 @@
 from __future__ import annotations
 import time
+from itertools import cycle
 import threading
 import copy
 import heapq
@@ -7,6 +8,7 @@ import queue
 
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
 from ...utils.custom_objects.data_classes import Solution
 from ...utils.custom_objects.enums import AgentType
@@ -278,74 +280,66 @@ class Supervisor:
         if not self.visualize_data:
             return
 
-        iterations = list(range(len(self.avg_perfomance_history)))
+        iterations = list(range(1, len(self.avg_perfomance_history) + 1))
 
         def setup_x_axis():
             plt.xlim(min(iterations), max(iterations))
-            plt.xticks(iterations)
+            plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
 
-        plt.figure(figsize=(12, 6))
-        for agent_type in AgentType:
-            plt.scatter(
-                iterations,
-                [hist[agent_type] for hist in self.avg_perfomance_history],
-                label=agent_type.name,
-                s=10
-            )
-        setup_x_axis()
-        plt.title("Average Performance per Agent Type")
-        plt.xlabel("Iteration")
-        plt.ylabel("Average Value")
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
+        def plot_scatter_with_line(title, ylabel, history_data):
+            plt.figure(figsize=(12, 6))
+            color_cycle = cycle(plt.rcParams['axes.prop_cycle'].by_key()['color'])
 
-        plt.figure(figsize=(12, 6))
-        for agent_type in AgentType:
-            plt.scatter(
-                iterations,
-                [hist[agent_type] for hist in self.best_perfomance_history],
-                label=agent_type.name,
-                s=10
-            )
-        setup_x_axis()
-        plt.title("Best Performance per Agent Type")
-        plt.xlabel("Iteration")
-        plt.ylabel("Best Value")
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
+            for agent_type in AgentType:
+                color = next(color_cycle)
+                y_values = [hist[agent_type] for hist in history_data]
+                
+                plt.scatter(
+                    iterations,
+                    y_values,
+                    label=agent_type.name,
+                    s=20,
+                    color=color
+                )
+                
+                plt.plot(
+                    iterations,
+                    y_values,
+                    linestyle='--',
+                    color=color,
+                    linewidth=0.7
+                )
 
-        plt.figure(figsize=(12, 6))
-        for agent_type in AgentType:
-            plt.scatter(
-                iterations,
-                [hist[agent_type] for hist in self.iteration_times_history],
-                label=agent_type.name,
-                s=10
-            )
-        setup_x_axis()
-        plt.title("Iteration Times per Agent Type")
-        plt.xlabel("Iteration")
-        plt.ylabel("Time (seconds)")
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
+            setup_x_axis()
+            plt.title(title)
+            plt.xlabel("Iteration")
+            plt.ylabel(ylabel)
+            plt.legend()
+            plt.grid(True)
+            plt.tight_layout()
 
-        plt.figure(figsize=(12, 6))
-        for agent_type in AgentType:
-            plt.scatter(
-                iterations,
-                [hist[agent_type] for hist in self.nums_history],
-                label=agent_type.name,
-                s=10
-            )
-        setup_x_axis()
-        plt.title("Number of Agents per Agent Type Over Time")
-        plt.xlabel("Iteration")
-        plt.ylabel("Number of Agents")
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
+        plot_scatter_with_line(
+            "Average Performance per Agent Type",
+            "Average Value",
+            self.avg_perfomance_history
+        )
+
+        plot_scatter_with_line(
+            "Best Performance per Agent Type",
+            "Best Value",
+            self.best_perfomance_history
+        )
+
+        plot_scatter_with_line(
+            "Iteration Times per Agent Type",
+            "Time (seconds)",
+            self.iteration_times_history
+        )
+
+        plot_scatter_with_line(
+            "Number of Agents per Agent Type Over Time",
+            "Number of Agents",
+            self.nums_history
+        )
 
         plt.show()
