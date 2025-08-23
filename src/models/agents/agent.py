@@ -56,3 +56,6 @@ class ParticleAgent(threading.Thread):
         ctypes.pythonapi.PyThreadState_SetAsyncExc(
             ctypes.c_long(self.ident), ctypes.py_object(SystemExit)
         )
+    
+    def execute(self):
+        pass
