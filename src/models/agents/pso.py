@@ -6,6 +6,7 @@ import numpy as np
 from .agent import ParticleAgent
 from ...utils.custom_objects.data_classes import Solution
 from ...utils import global_parameters as gp
+from ...utils.functions import discrete
 
 
 class PSOAgent(ParticleAgent):
@@ -18,7 +19,7 @@ class PSOAgent(ParticleAgent):
         self.C1 = gp.C1
         self.C2 = gp.C2
         
-        position = np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,))
+        position = discrete(np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,)))
         self.velocities: np.ndarray[float] = np.random.uniform(-1, 1, (gp.DIMENSIONS,))
         
         self.current: Solution = Solution(position, gp.OBJECTIVE_FUNCTION(position))
@@ -40,7 +41,7 @@ class PSOAgent(ParticleAgent):
                 self.C1 * np.random.rand(gp.DIMENSIONS) * (self.local_best.position - self.current.position) +
                 self.C2 * np.random.rand(gp.DIMENSIONS) * (self.global_best.position - self.current.position)
             )
-            new_pos = np.clip(self.current.position + new_vel, gp.MIN_VALUE, gp.MAX_VALUE)
+            new_pos = discrete(np.clip(self.current.position + new_vel, gp.MIN_VALUE, gp.MAX_VALUE))
             self.velocities = new_pos - self.current.position
             self.current.position = new_pos
             self.current.value = gp.OBJECTIVE_FUNCTION(self.current.position)

@@ -23,26 +23,36 @@ class ACOAgent(ParticleAgent):
         self.beta *= exploration
     
     def generate_solution(self):
-        position = np.array([
-            np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE)
-            if np.random.rand() > self.pheromone_prob(i) or self.local_best.position is None
-            else self.local_best.position[i]
-            for i in range(gp.DIMENSIONS)
-        ])
+        if gp.IS_DISCRETE:
+            position = np.array([
+                np.random.choice(
+                    np.linspace(gp.MIN_VALUE, gp.MAX_VALUE, gp.DISCRETE_POINTS),
+                    p=self.pheromone_prob(i)
+                )
+                for i in range(gp.DIMENSIONS)
+            ])
+        else:
+            position = np.array([
+                np.random.normal(self.supervisor.means[i], self.supervisor.sigmas[i])
+                for i in range(gp.DIMENSIONS)
+            ])
+            position = np.clip(position, gp.MIN_VALUE, gp.MAX_VALUE)
+        
         return Solution(position, gp.OBJECTIVE_FUNCTION(position))
 
     def pheromone_prob(self, i):
         tau = self.supervisor.pheromones[i] ** self.alpha
         eta = self.supervisor.heuristic[i] ** self.beta
-        return tau * eta / (tau * eta + 1e-9)
+        probs = tau * eta
+        return probs / np.sum(probs)
 
     def execute(self) -> None:
-        solutions = [self.generate_solution() for _ in range(self.__class__.iterations)]
-        best_solution = min(solutions)
+        for iteration in range(self.__class__.iterations):
+            solution = self.generate_solution()
 
-        if self.local_best.position is None or best_solution.value < self.local_best.value:
-            self.local_best = best_solution
-            if self.global_best_agent_type.value > self.local_best.value:
-                self.supervisor.update_global_best(self.local_best, self.__class__)
+            if self.local_best.position is None or solution.value < self.local_best.value:
+                self.local_best = solution
+                if self.global_best_agent_type.value > self.local_best.value:
+                    self.supervisor.update_global_best(self.local_best, self.__class__)
 
         self.supervisor.collect_results(self, self.local_best.value)

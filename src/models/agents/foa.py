@@ -5,6 +5,7 @@ import numpy as np
 from .agent import ParticleAgent
 from ...utils.custom_objects.data_classes import Solution
 from ...utils import global_parameters as gp
+from ...utils.functions import discrete
 
 
 class FOAAgent(ParticleAgent):
@@ -15,14 +16,17 @@ class FOAAgent(ParticleAgent):
         
         self.W = gp.W_FOA
         
-        self.local_best = Solution(pos := np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS), gp.OBJECTIVE_FUNCTION(pos))
+        self.local_best = Solution(
+            pos := discrete(np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS)), 
+            gp.OBJECTIVE_FUNCTION(pos)
+        )
         self.global_best: Solution = Solution()
 
     def set_global_best(self, global_best: Solution):
         self.global_best = global_best
     
     def random_fly(self):
-        return self.global_best.position + self.W * np.random.normal(0, 1, gp.DIMENSIONS)
+        return discrete(self.global_best.position + self.W * np.random.normal(0, 1, gp.DIMENSIONS))
 
     def adapt(self, exploration: int, exploitation: int):
         self.W *= exploration * exploitation

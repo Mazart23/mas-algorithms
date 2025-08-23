@@ -6,6 +6,7 @@ import numpy as np
 from .agent import ParticleAgent
 from ...utils.custom_objects.data_classes import Solution
 from ...utils import global_parameters as gp
+from ...utils.functions import discrete
 
 
 class GAAgent(ParticleAgent):
@@ -39,7 +40,7 @@ class GAAgent(ParticleAgent):
 
     def mutate(self, offspring: np.ndarray[float]) -> np.ndarray[float]:
         mutation_vector = np.random.uniform(-0.5, 0.5, (gp.DIMENSIONS,)) * (np.random.rand(gp.DIMENSIONS) < gp.MUTATION_RATE_GA)
-        return offspring + mutation_vector
+        return discrete(offspring + mutation_vector)
 
     def execute(self) -> None:
         for iteration in range(self.__class__.iterations):

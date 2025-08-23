@@ -42,12 +42,16 @@ class SoftmaxAdjuster:
         self.Q[action] = self.Q[action] + self.alpha * (reward + self.gamma * np.max(self.Q) - self.Q[action])
 
     def update_adjust_num(self, improvement):
-        if improvement is None:
+        if improvement is None or self.prev_best_value is None:
             return
 
         improvement_ratio = improvement / self.prev_best_value
 
-        new_adjust_num = self.max_adjust - improvement_ratio * self.dynamic_speed * (self.max_adjust - self.min_adjust)
+        if not np.isfinite(improvement_ratio):
+            new_adjust_num = self.min_adjust
+        else:
+            new_adjust_num = self.max_adjust - improvement_ratio * self.dynamic_speed * (self.max_adjust - self.min_adjust)
+        
         new_adjust_num = np.clip(new_adjust_num, self.min_adjust, self.max_adjust)
 
         self.prev_adjust_num = int(new_adjust_num)

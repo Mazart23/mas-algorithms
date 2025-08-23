@@ -7,6 +7,7 @@ import numpy as np
 from .agent import ParticleAgent
 from ...utils.custom_objects.data_classes import Solution
 from ...utils import global_parameters as gp
+from ...utils.functions import discrete
 
 
 class ABCAgent(ParticleAgent):
@@ -18,7 +19,10 @@ class ABCAgent(ParticleAgent):
         self.is_employeed: bool = gp.EMPLOYED_ABC_PERCENTAGE > np.random.uniform(0, 1)
         self.W = gp.W_ABC_EMPLOYEED if self.is_employeed else gp.W_ABC_SCOUT
         
-        self.current: Solution = Solution(pos := np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,)), gp.OBJECTIVE_FUNCTION(pos))
+        self.current: Solution = Solution(
+            pos := discrete(np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,))), 
+            gp.OBJECTIVE_FUNCTION(pos)
+        )
         self.local_best: Solution = copy.deepcopy(self.current)
         self.childs: list[Solution] = []
         
@@ -37,7 +41,7 @@ class ABCAgent(ParticleAgent):
     def explore_neighbourhood(self, position) -> np.ndarray:
         phi = np.random.uniform(-1, 1, gp.DIMENSIONS)
         partner, = self.supervisor.get_parents(size=1)
-        return np.clip(position + self.W * phi * (position - partner.position), gp.MIN_VALUE, gp.MAX_VALUE)
+        return discrete(np.clip(position + self.W * phi * (position - partner.position), gp.MIN_VALUE, gp.MAX_VALUE))
 
     def determine_type(self) -> None:
         if self.supervisor.abc_border_performance:

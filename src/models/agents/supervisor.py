@@ -13,6 +13,7 @@ from matplotlib.ticker import MaxNLocator
 from ...utils.custom_objects.data_classes import Solution
 from ...utils.custom_objects.enums import AgentType
 from ...utils import global_parameters as gp
+from ...utils.functions import discrete
 from .adjuster import SoftmaxAdjuster
 
 
@@ -51,9 +52,13 @@ class Supervisor:
         self.childs: list[Solution] = []
         self.possible_pairs: int = 0
         self.probabilities: list[float] = []
-        
-        self.pheromones: np.ndarray = np.ones((gp.DIMENSIONS,))
-        self.heuristic: np.ndarray = np.ones((gp.DIMENSIONS,))
+
+        if gp.IS_DISCRETE:
+            self.pheromones = np.ones((gp.DIMENSIONS, gp.DISCRETE_POINTS))
+            self.heuristic = np.ones((gp.DIMENSIONS, gp.DISCRETE_POINTS))
+        else:
+            self.means = np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS)
+            self.sigmas = np.full(gp.DIMENSIONS, (gp.MAX_VALUE - gp.MIN_VALUE) / 2.0)    
 
         self.abc_border_performance: float = 0.0
         
@@ -92,7 +97,11 @@ class Supervisor:
     
     def initialize_population(self) -> None:
         self.set_population(
-            sorted([Solution(pos := np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,)), gp.OBJECTIVE_FUNCTION(pos)) for _ in range(gp.GA_POPULATION)])
+            sorted([Solution(
+                    pos := discrete(np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, (gp.DIMENSIONS,))), 
+                    gp.OBJECTIVE_FUNCTION(pos)
+                ) for _ in range(gp.GA_POPULATION)]
+            )
         )
         self.calculate_possible_pairs()
         self.calculate_probabilities()
@@ -108,8 +117,19 @@ class Supervisor:
         self.update_global_best(self.population[0], AgentType.GA.value)
         
     def update_pheromones(self) -> None:
-        delta_pheromones = 1.0 / (1.0 + self.global_best.value)
-        self.pheromones = (1 - gp.EVAPORATION_RATE_ACO) * self.pheromones + delta_pheromones
+        if gp.IS_DISCRETE:
+            solutions = [agent.local_best for agent in self.particle_agents[AgentType.ACO]]
+            self.pheromones *= (1 - gp.EVAPORATION_RATE_ACO)
+            for sol in solutions:
+                q = 1.0 / (1.0 + sol.value)
+                for i, val in enumerate(sol.position):
+                    idx = np.argmin(np.abs(np.linspace(gp.MIN_VALUE, gp.MAX_VALUE, gp.DISCRETE_POINTS) - val))
+                    self.pheromones[i, idx] += q
+        else:
+            best_sol = self.agent_type_best[AgentType.ACO]
+            rho = 1 - gp.EVAPORATION_RATE_ACO
+            self.means = rho * self.means + (1 - rho) * best_sol.position
+            self.sigmas = np.maximum(rho * self.sigmas + (1 - rho) * np.abs(best_sol.position - self.means), 1e-6)
 
     def update_abc_border_performance(self) -> None:
         employed_agents_num = int(self.num_agents[AgentType.ABC] * gp.EMPLOYED_ABC_PERCENTAGE)
@@ -252,7 +272,7 @@ class Supervisor:
                 agent.start()
     
     def agent_stopped(self, agent_class: type):
-        stop_time = time.time()
+        stop_time = time.perf_counter()
         self.q_agents_stopped.put((AgentType(agent_class), stop_time))
 
     def wait_for_agents(self) -> None:

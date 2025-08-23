@@ -1,5 +1,6 @@
 import numpy as np
 
+from . import global_parameters as gp
 
 def rastrigin(x):
     return 10 * len(x) + sum(xi**2 - 10 * np.cos(2 * np.pi * xi) for xi in x)
@@ -27,3 +28,14 @@ OBJECTIVE_FUNCTIONS_DICT = {
     'ackley': ackley,
     'griewank': griewank,
 }
+
+def discrete(x: np.ndarray) -> np.ndarray:
+    if gp.IS_DISCRETE == 0:
+        return x
+
+    step = (gp.MAX_VALUE - gp.MIN_VALUE) / (gp.DISCRETE_POINTS - 1)
+
+    idx = np.rint((x - gp.MIN_VALUE) / step).astype(int)
+    idx = np.clip(idx, 0, gp.DISCRETE_POINTS - 1)
+
+    return gp.MIN_VALUE + idx * step

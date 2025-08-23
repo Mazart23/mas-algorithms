@@ -5,6 +5,7 @@ import numpy as np
 from .agent import ParticleAgent
 from ...utils.custom_objects.data_classes import Solution
 from ...utils import global_parameters as gp
+from ...utils.functions import discrete
 
 class DEAgent(ParticleAgent):
     iterations = gp.DE_ITERATIONS
@@ -15,13 +16,16 @@ class DEAgent(ParticleAgent):
         self.F = gp.F_DE
         self.CR = gp.CR_DE
         
-        self.local_best = Solution(pos := np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS), gp.OBJECTIVE_FUNCTION(pos))
+        self.local_best = Solution(
+            pos := discrete(np.random.uniform(gp.MIN_VALUE, gp.MAX_VALUE, gp.DIMENSIONS)), 
+            gp.OBJECTIVE_FUNCTION(pos)
+        )
 
     def get_childs(self):
         return [self.local_best]
 
     def mutate(self, r1, r2, r3) -> np.ndarray:
-        return np.clip(r1 + self.F * (r2 - r3), gp.MIN_VALUE, gp.MAX_VALUE)
+        return discrete(np.clip(r1 + self.F * (r2 - r3), gp.MIN_VALUE, gp.MAX_VALUE))
 
     def crossover(self, target, mutant) -> np.ndarray:
         return np.array([mutant[i] if np.random.rand() < self.CR else target[i] for i in range(gp.DIMENSIONS)])
