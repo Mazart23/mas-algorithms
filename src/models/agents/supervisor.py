@@ -54,6 +54,7 @@ class Supervisor:
         self.probabilities: list[float] = []
 
         if gp.IS_DISCRETE:
+            self.aco_grid = np.linspace(gp.MIN_VALUE, gp.MAX_VALUE, gp.DISCRETE_POINTS)
             self.pheromones = np.ones((gp.DIMENSIONS, gp.DISCRETE_POINTS))
             self.heuristic = np.ones((gp.DIMENSIONS, gp.DISCRETE_POINTS))
         else:
@@ -119,12 +120,29 @@ class Supervisor:
     def update_pheromones(self) -> None:
         if gp.IS_DISCRETE:
             solutions = [agent.local_best for agent in self.particle_agents[AgentType.ACO]]
-            self.pheromones *= (1 - gp.EVAPORATION_RATE_ACO)
-            for sol in solutions:
-                q = 1.0 / (1.0 + sol.value)
+            vals = np.array([s.value for s in solutions])
+            v_best, v_worst = float(np.min(vals)), float(np.max(vals))
+            qs = (v_worst - vals) / (v_worst - v_best + 1e-6)
+            qs = np.clip(qs, 0.0, 1.0)
+
+            evap = gp.EVAPORATION_RATE_ACO
+            self.pheromones = self.pheromones * (1.0 - evap) + evap * 1e-6
+
+            kernel_radius = max(1, gp.DISCRETE_POINTS // 1000)
+            sigma = max(1.0, kernel_radius / 2.0)
+            offsets = np.arange(-kernel_radius, kernel_radius + 1)
+            kernel = np.exp(-(offsets ** 2)/(2 * sigma ** 2))
+            kernel /= kernel.sum()
+
+            for sol, q in zip(solutions, qs):
                 for i, val in enumerate(sol.position):
-                    idx = np.argmin(np.abs(np.linspace(gp.MIN_VALUE, gp.MAX_VALUE, gp.DISCRETE_POINTS) - val))
-                    self.pheromones[i, idx] += q
+                    idx = int(np.round((val - gp.MIN_VALUE) * (gp.DISCRETE_POINTS-1) / (gp.MAX_VALUE-gp.MIN_VALUE)))
+                    idx = np.clip(idx, 0, gp.DISCRETE_POINTS-1)
+                    lo = max(0, idx - kernel_radius)
+                    hi = min(gp.DISCRETE_POINTS, idx + kernel_radius + 1)
+                    k_lo = kernel_radius - (idx - lo)
+                    k_hi = k_lo + (hi - lo)
+                    self.pheromones[i, lo:hi] += (0.5 + 0.5 * q) * kernel[k_lo:k_hi]
         else:
             best_sol = self.agent_type_best[AgentType.ACO]
             rho = 1 - gp.EVAPORATION_RATE_ACO
@@ -259,7 +277,7 @@ class Supervisor:
             iteration_times = self.iteration_times_history[-1]
             mean_time = np.mean(list(iteration_times.values()))
             for agent_type, iteration_time in iteration_times.items():
-                agent_type.value.iterations = int(agent_type.value.iterations * mean_time / iteration_time + 1)
+                agent_type.value.iterations = max(1, int(agent_type.value.iterations * mean_time / iteration_time))
     
     def start_agents(self) -> None:
         for agent_type in AgentType:

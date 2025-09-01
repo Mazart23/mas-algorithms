@@ -41,10 +41,14 @@ class ACOAgent(ParticleAgent):
         return Solution(position, gp.OBJECTIVE_FUNCTION(position))
 
     def pheromone_prob(self, i):
-        tau = self.supervisor.pheromones[i] ** self.alpha
-        eta = self.supervisor.heuristic[i] ** self.beta
+        eps = 1e-18
+        tau = np.power(self.supervisor.pheromones[i] + eps, self.alpha)
+        eta = np.power(self.supervisor.heuristic[i]  + eps, self.beta)
         probs = tau * eta
-        return probs / np.sum(probs)
+        s = probs.sum()
+        if not np.isfinite(s) or s <= eps:
+            return np.full_like(probs, 1.0 / len(probs), dtype=float)
+        return probs / s
 
     def execute(self) -> None:
         for iteration in range(self.__class__.iterations):
