@@ -1,13 +1,13 @@
 # configuration
 OBJ_FUNCTION: 'rastrigin' # currently supported: rastrigin, sphere, ackley, griewank
 IS_DISCRETE: 1
-IS_ADAPT_NUM_AGENTS: 1
-IS_ADAPT_PARAMETERS: 1
+IS_ADAPT_NUM_AGENTS: 0
+IS_ADAPT_PARAMETERS: 0
 IS_ADAPT_ITERATIONS: 1
 IS_VISUALIZE_DATA: 1
 
 # general parameters
-NUM_AGENTS: 200
+NUM_AGENTS: 120
 ITERATIONS: 10
 
 # adaptation - number of agents
@@ -18,12 +18,12 @@ ADAPTATION_NUM_AGENT_AVG_INFLUENCE: 0.2 # Percentage describing influence of mea
 ADAPTATION_NUM_AGENT_BEST_INFLUENCE: 0.8 # Percentage describing influence of best solution for performance calculating
 
 # adaptation - parameters
-ADAPTATION_PARAMETERS_EXPLORATION_PERCENTAGE: 0.25 # Percentage of all agents from specific type to increase exploration related parameters
-ADAPTATION_PARAMETERS_EXPLOITATION_PERCENTAGE: 0.25 # Percentage of all agents from specific type to increase exploitation related parameters
+ADAPTATION_PARAMETERS_EXPLORATION_PERCENTAGE: 0.3 # Percentage of all agents from specific type to increase exploration related parameters
+ADAPTATION_PARAMETERS_EXPLOITATION_PERCENTAGE: 0.3 # Percentage of all agents from specific type to increase exploitation related parameters
 ADAPTATION_PARAMETERS_EXPLORATION_RATE_INC: 1.2 # Weight of increasing exploration related parameters
-ADAPTATION_PARAMETERS_EXPLORATION_RATE_DEC: 0.9 # Weight of decreasing exploration related parameters
-ADAPTATION_PARAMETERS_EXPLOITATION_RATE_INC: 1.5 # Weight of increasing exploitation related parameters
-ADAPTATION_PARAMETERS_EXPLOITATION_RATE_DEC: 0.9 # Weight of decreasing exploitation related parameters
+ADAPTATION_PARAMETERS_EXPLORATION_RATE_DEC: 0.8 # Weight of decreasing exploration related parameters
+ADAPTATION_PARAMETERS_EXPLOITATION_RATE_INC: 1.2 # Weight of increasing exploitation related parameters
+ADAPTATION_PARAMETERS_EXPLOITATION_RATE_DEC: 0.8 # Weight of decreasing exploitation related parameters
 
 
 # PSO parameters
