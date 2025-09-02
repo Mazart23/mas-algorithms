@@ -31,8 +31,8 @@ class DEAgent(ParticleAgent):
         return np.array([mutant[i] if np.random.rand() < self.CR else target[i] for i in range(gp.DIMENSIONS)])
 
     def adapt(self, exploration: int, exploitation: int) -> None:
-        self.F *= exploration * exploitation
-        self.CR *= exploration * exploitation
+        self.F *= exploration
+        self.CR *= exploitation
     
     def execute(self):
         for iteration in range(self.__class__.iterations):

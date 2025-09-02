@@ -49,7 +49,7 @@ class ABCAgent(ParticleAgent):
         self.W = gp.W_ABC_EMPLOYEED if self.is_employeed else gp.W_ABC_SCOUT
 
     def adapt(self, exploration: int, exploitation: int):
-        self.W *= exploitation
+        self.W *= exploration
     
     def execute(self):
         self.determine_type()

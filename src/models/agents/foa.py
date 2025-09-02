@@ -29,7 +29,7 @@ class FOAAgent(ParticleAgent):
         return discrete(self.global_best.position + self.W * np.random.normal(0, 1, gp.DIMENSIONS))
 
     def adapt(self, exploration: int, exploitation: int):
-        self.W *= exploration * exploitation
+        self.W *= exploration
     
     def execute(self):
         for iteration in range(self.__class__.iterations):

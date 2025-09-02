@@ -30,9 +30,9 @@ class PSOAgent(ParticleAgent):
         self.global_best = global_best
 
     def adapt(self, exploration: int, exploitation: int):
-        self.W *= exploitation
-        self.C1 *= exploration * exploitation
-        self.C2 *= exploration
+        self.W *= exploration
+        self.C1 *= exploitation
+        self.C2 *= exploitation
     
     def execute(self) -> None:
         for iteration in range(self.__class__.iterations):        
