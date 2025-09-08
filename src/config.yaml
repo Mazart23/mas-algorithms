@@ -1,8 +1,8 @@
 # configuration
 OBJ_FUNCTION: 'rastrigin' # currently supported: rastrigin, sphere, ackley, griewank
 IS_DISCRETE: 1
-IS_ADAPT_NUM_AGENTS: 0
-IS_ADAPT_PARAMETERS: 0
+IS_ADAPT_NUM_AGENTS: 1
+IS_ADAPT_PARAMETERS: 1
 IS_ADAPT_ITERATIONS: 1
 IS_VISUALIZE_DATA: 1
 
@@ -59,10 +59,10 @@ CR_DE: 0.9  # Crossover probability
 ACO_ITERATIONS: 100
 ALPHA_ACO: 1.0  # Inertion
 BETA_ACO: 0  # Inertion
-EVAPORATION_RATE_ACO: 0.2
+EVAPORATION_RATE_ACO: 0.5
 
 # function parameters
 DIMENSIONS: 5
 DISCRETE_POINTS: 1001
-MIN_VALUE: -5
-MAX_VALUE: 5
+MIN_VALUE: -5.12
+MAX_VALUE: 5.12

@@ -118,6 +118,7 @@ class Supervisor:
         self.update_global_best(self.population[0], AgentType.GA.value)
         
     def update_pheromones(self) -> None:
+        evap = gp.EVAPORATION_RATE_ACO
         if gp.IS_DISCRETE:
             solutions = [agent.local_best for agent in self.particle_agents[AgentType.ACO]]
             vals = np.array([s.value for s in solutions])
@@ -125,7 +126,6 @@ class Supervisor:
             qs = (v_worst - vals) / (v_worst - v_best + 1e-6)
             qs = np.clip(qs, 0.0, 1.0)
 
-            evap = gp.EVAPORATION_RATE_ACO
             self.pheromones = self.pheromones * (1.0 - evap) + evap * 1e-6
 
             kernel_radius = max(1, gp.DISCRETE_POINTS // 1000)
@@ -145,9 +145,8 @@ class Supervisor:
                     self.pheromones[i, lo:hi] += (0.5 + 0.5 * q) * kernel[k_lo:k_hi]
         else:
             best_sol = self.agent_type_best[AgentType.ACO]
-            rho = 1 - gp.EVAPORATION_RATE_ACO
-            self.means = rho * self.means + (1 - rho) * best_sol.position
-            self.sigmas = np.maximum(rho * self.sigmas + (1 - rho) * np.abs(best_sol.position - self.means), 1e-6)
+            self.means = evap * self.means + (1 - evap) * best_sol.position
+            self.sigmas = np.maximum(evap * self.sigmas + (1 - evap) * np.abs(best_sol.position - self.means), 1e-6)
 
     def update_abc_border_performance(self) -> None:
         employed_agents_num = int(self.num_agents[AgentType.ABC] * gp.EMPLOYED_ABC_PERCENTAGE)
